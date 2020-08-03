@@ -15,7 +15,7 @@ use std::sync::Arc;
 use typenum::consts::U64;
 use zexe_algebra::{
     AffineCurve, BigInteger, CanonicalSerialize, ConstantSerializedSize, Field, One, PairingEngine,
-    PrimeField, ProjectiveCurve, UniformRand, Zero,
+    PrimeField, ProjectiveCurve, UniformRand, Zero, BatchArithmetic,
 };
 
 #[cfg(feature = "parallel")]
@@ -60,45 +60,83 @@ pub fn batch_mul<C: AffineCurve>(bases: &mut [C], coeff: &C::ScalarField) -> Res
     Ok(())
 }
 
-/// Exponentiate a large number of points, with an optional coefficient to be applied to the
-/// exponent.
-pub fn batch_exp<C: AffineCurve>(
-    bases: &mut [C],
-    exps: &[C::ScalarField],
-    coeff: Option<&C::ScalarField>,
-) -> Result<()> {
-    if bases.len() != exps.len() {
-        return Err(Error::InvalidLength {
-            expected: bases.len(),
-            got: exps.len(),
-        });
-    }
-    // raise the base to the exponent and assign it back to the base
-    // this will return the points as projective
-    let mut points: Vec<_> = cfg_iter_mut!(bases)
-        .zip(exps)
-        .map(|(base, exp)| {
-            // If a coefficient was provided, multiply the exponent
-            // by that coefficient
-            let exp = if let Some(coeff) = coeff {
-                exp.mul(coeff)
-            } else {
-                *exp
-            };
+pub trait BatchExp<C: AffineCurve> {
+    fn batch_exp(
+        bases: &mut [C],
+        exps: &[C::ScalarField],
+        coeff: Option<&C::ScalarField>,
+    ) -> Result<()>;
+}
 
-            // Raise the base to the exponent (additive notation so it is executed
-            // via a multiplication)
-            base.mul(exp)
+impl<C: AffineCurve> BatchExp<C> for C {
+    /// Exponentiate a large number of points, with an optional coefficient to be applied to the
+    /// exponent.
+     default fn batch_exp(
+        bases: &mut [C],
+        exps: &[C::ScalarField],
+        coeff: Option<&C::ScalarField>,
+    ) -> Result<()> {
+        println!("Using shitty normal exp!");
+        if bases.len() != exps.len() {
+            return Err(Error::InvalidLength {
+                expected: bases.len(),
+                got: exps.len(),
+            });
+        }
+        // raise the base to the exponent and assign it back to the base
+        // this will return the points as projective
+        let mut points: Vec<_> = cfg_iter_mut!(bases)
+            .zip(exps)
+            .map(|(base, exp)| {
+                // If a coefficient was provided, multiply the exponent
+                // by that coefficient
+                let exp = if let Some(coeff) = coeff {
+                    exp.mul(coeff)
+                } else {
+                    *exp
+                };
+
+                // Raise the base to the exponent (additive notation so it is executed
+                // via a multiplication)
+                base.mul(exp)
+            })
+            .collect();
+        // we do not use Zexe's batch_normalization_into_affine because it allocates
+        // a new vector
+        C::Projective::batch_normalization(&mut points);
+        cfg_iter_mut!(bases)
+            .zip(points)
+            .for_each(|(base, proj)| *base = proj.into_affine());
+
+        Ok(())
+    }
+}
+
+impl<C: AffineCurve> BatchExp<C> for C
+where [C]: BatchArithmetic<C>,
+{
+    fn batch_exp(bases: &mut [C], exps: &[C::ScalarField], coeff: Option<&C::ScalarField>) -> Result<()> {
+        // println!("Using batch exp!");
+        let mut powers_vec: Vec<<C::ScalarField as PrimeField>::BigInt> = exps.to_vec()
+            .iter()
+            .map(|s| {
+            let s = &mut match coeff {
+                Some(k) => *s * k,
+                None => *s,
+            };
+            s.into_repr()
         })
         .collect();
-    // we do not use Zexe's batch_normalization_into_affine because it allocates
-    // a new vector
-    C::Projective::batch_normalization(&mut points);
-    cfg_iter_mut!(bases)
-        .zip(points)
-        .for_each(|(base, proj)| *base = proj.into_affine());
+        // println!("Done changing into repr");
 
-    Ok(())
+        // println!("Batch scalar mul");
+        // calculate the powers
+        bases[..].batch_scalar_mul_in_place::<<C::ScalarField as PrimeField>::BigInt>
+            (2, &mut powers_vec[..]);
+        // println!("Finished batch scalar mul");
+
+        Ok(())
+    }
 }
 
 // Create an RNG based on a mixture of system randomness and user provided randomness

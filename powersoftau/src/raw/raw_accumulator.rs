@@ -11,6 +11,10 @@ use zexe_algebra::{AffineCurve, PairingEngine, ProjectiveCurve, Zero};
 use itertools::{Itertools, MinMaxResult};
 use tracing::{debug, info, info_span, trace};
 
+use rayon::prelude::*;
+
+const INVERSION_BATCH_SIZE: usize = 10000;
+
 /// Mutable buffer, compression
 type Output<'a> = (&'a mut [u8], UseCompression);
 /// Buffer, compression
@@ -476,6 +480,9 @@ pub fn contribute<E: PairingEngine>(
         beta_g2.write_element(&beta_g2_el, compressed_output)?;
     }
 
+
+    println!("Starting powers of tau");
+    let now = std::time::Instant::now();
     // load `batch_size` chunks on each iteration and perform the transformation
     iter_chunk(&parameters, |start, end| {
         debug!("contributing to chunk from {} to {}", start, end);
@@ -485,8 +492,11 @@ pub fn contribute<E: PairingEngine>(
             let _enter = span.enter();
             t.spawn(|_| {
                 let _enter = span.enter();
+
+                let then = std::time::Instant::now();
                 // generate powers from `start` to `end` (e.g. [0,4) then [4, 8) etc.)
                 let powers = generate_powers_of_tau::<E>(&key.tau, start, end);
+                println!("Time taken for powers of tau: {:?}us", then.elapsed().as_micros());
                 trace!("generated powers of tau");
 
                 // raise each element from the input buffer to the powers of tau
@@ -563,6 +573,7 @@ pub fn contribute<E: PairingEngine>(
         debug!("chunk contribution successful");
         Ok(())
     })?;
+    println!("Time taken for entire contribution: {:?}us", now.elapsed().as_micros());
 
     info!("done");
 
@@ -630,13 +641,38 @@ fn apply_powers<C: AffineCurve>(
 ) -> Result<()> {
     let in_size = buffer_size::<C>(input_compressed);
     let out_size = buffer_size::<C>(output_compressed);
+
+    let ranges: Vec<(usize, usize)> = (start..end)
+    .chunks(INVERSION_BATCH_SIZE)
+    .into_iter()
+    .map(|chunk| {
+        match chunk.minmax() {
+            MinMaxResult::MinMax(start, end) => (start, end + 1),
+            MinMaxResult::OneElement(start) => (start, start + 1),
+            MinMaxResult::NoElements => (0, 0),
+        }
+    }).collect();
+
+    println!("Reading");
+    let now = std::time::Instant::now();
     // read the input
-    let mut elements =
-        &mut input[start * in_size..end * in_size].read_batch::<C>(input_compressed)?;
-    // calculate the powers
-    batch_exp(&mut elements, &powers[..end - start], coeff)?;
-    // write back
-    output[start * out_size..end * out_size].write_batch(&elements, output_compressed)?;
+    let mut element_batch: Vec<(Vec<C>, (usize, usize))> = ranges.iter().map(|(start, end)| {
+        (input[*start * in_size..*end * in_size].read_batch::<C>(input_compressed).expect("NIL"), (*start, *end))
+    }).collect();
+    println!("Done reading at {:?} us", now.elapsed().as_millis());
+
+    element_batch.par_iter_mut().map(|(elements, (start, end))| {
+        // calculate the powers
+        C::batch_exp(&mut elements[..], &powers[..*end - *start], coeff).expect("NIL");
+    })
+    .collect::<()>();
+
+    println!("writing");
+    for (elements, (start, end)) in element_batch {
+        // write back
+        output[start * out_size..end * out_size].write_batch(&elements, output_compressed).expect("NIL");
+    }
+    println!("done writing");
 
     Ok(())
 }

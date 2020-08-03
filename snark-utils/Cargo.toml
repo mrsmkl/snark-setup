@@ -8,8 +8,8 @@ edition = "2018"
 
 [dependencies]
 thiserror = "1.0.11"
-zexe_algebra = { package = "algebra", git = "https://github.com/scipr-lab/zexe", version = "0.1.0", features = ["parallel"] }
-zexe_fft = { package = "ff-fft", git = "https://github.com/scipr-lab/zexe", version = "0.1.0", features = ["parallel"] }
+zexe_algebra = { path = "../../zexe/algebra", package = "algebra", version = "0.1.0", features = ["parallel", "prefetch"] }
+zexe_fft = { path = "../../zexe/ff-fft", package = "ff-fft", version = "0.1.0", features = ["parallel"] }
 rayon = { version = "1.3.0", optional = true }
 
 # crypto lower-level crates
@@ -26,7 +26,7 @@ tracing = "0.1.13"
 [dev-dependencies]
 criterion = "0.3.1"
 test-helpers = { path = "../test-helpers" }
-zexe_algebra = { package = "algebra", git = "https://github.com/scipr-lab/zexe", version = "0.1.0", features = ["parallel", "full"] }
+zexe_algebra = { path = "../../zexe/algebra", package = "algebra", version = "0.1.0", features = ["parallel", "full"] }
 powersoftau = { path = "../powersoftau" }
 
 [[bench]]

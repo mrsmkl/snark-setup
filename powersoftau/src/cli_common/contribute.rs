@@ -114,6 +114,7 @@ pub fn contribute<T: Engine + Sync>(
     println!("Computing and writing your contribution, this could take a while...");
 
     // this computes a transformation and writes it
+    let now = std::time::Instant::now();
     BatchedAccumulator::contribute(
         &readable_map,
         &mut writable_map,
@@ -124,6 +125,7 @@ pub fn contribute<T: Engine + Sync>(
         &parameters,
     )
     .expect("must contribute with the key");
+    println!("Time taken for main contribution: {:?} us", now.elapsed().as_micros());
 
     println!("Finishing writing your contribution to response file...");
 

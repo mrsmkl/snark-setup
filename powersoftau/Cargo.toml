@@ -13,7 +13,8 @@ repository = "https://github.com/matter-labs/powersoftau"
 [dependencies]
 snark-utils = { path = "../snark-utils", features = ["parallel"] }
 
-zexe_algebra = { git = "https://github.com/scipr-lab/zexe", package = "algebra", version = "0.1.0", features = ["parallel", "bw6_761"] }
+zexe_algebra = { path = "../../zexe/algebra", package = "algebra", version = "0.1.0", features = ["parallel", "bw6_761", "prefetch"] }
+zexe_fft = { path = "../../zexe/ff-fft", package = "ff-fft", version = "0.1.0", features = ["parallel"] }
 
 rand = { version = "0.7" }
 memmap = "0.7.0"
@@ -28,7 +29,7 @@ tracing-subscriber = "0.2.3"
 
 [dev-dependencies]
 criterion = "0.3"
-zexe_algebra = { git = "https://github.com/scipr-lab/zexe", package = "algebra", version = "0.1.0", features = ["parallel", "full", "derive"] }
+zexe_algebra = { path = "../../zexe/algebra", package = "algebra", version = "0.1.0", features = ["parallel", "full", "derive"] }
 test-helpers = { path = "../test-helpers" }
 
 [[bench]]
