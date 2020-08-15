@@ -3,7 +3,7 @@ use powersoftau::cli_common::{
     contribute, new_challenge, transform, Command, CurveKind, PowersOfTauOpts,
 };
 use powersoftau::parameters::CeremonyParams;
-use snark_utils::{beacon_randomness, get_rng, user_system_randomness};
+use snark_utils::{beacon_randomness, derive_rng_from_seed};
 
 use std::process;
 use std::time::Instant;
@@ -33,7 +33,7 @@ fn main() {
 }
 
 fn execute_cmd<E: Engine>(opts: PowersOfTauOpts) {
-    let parameters = CeremonyParams::<E>::new(opts.power, opts.batch_size);
+    let parameters = CeremonyParams::<E>::new(opts.power, opts.batch_size, opts.chunk_index);
 
     let command = opts.clone().command.unwrap_or_else(|| {
         eprintln!("No command was provided.");
@@ -48,7 +48,8 @@ fn execute_cmd<E: Engine>(opts: PowersOfTauOpts) {
         }
         Command::Contribute(opt) => {
             // contribute to the randomness
-            let rng = get_rng(&user_system_randomness());
+            let seed = hex::decode(&opts.seed).expect("seed should be a hex string");
+            let rng = derive_rng_from_seed(&seed);
             contribute(&opt.challenge_fname, &opt.response_fname, &parameters, rng);
         }
         Command::Beacon(opt) => {
@@ -56,7 +57,7 @@ fn execute_cmd<E: Engine>(opts: PowersOfTauOpts) {
             // Place block hash here (block number #564321)
             let beacon_hash: [u8; 32] =
                 hex!("0000000000000000000a558a61ddc8ee4e488d647a747fe4dcc362fe2026c620");
-            let rng = get_rng(&beacon_randomness(beacon_hash));
+            let rng = derive_rng_from_seed(&beacon_randomness(beacon_hash));
             contribute(&opt.challenge_fname, &opt.response_fname, &parameters, rng);
         }
         Command::VerifyAndTransform(opt) => {

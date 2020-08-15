@@ -26,6 +26,14 @@ pub enum ProvingSystem {
 pub struct PowersOfTauOpts {
     help: bool,
     #[options(
+        help = "the seed to derive private elements from"
+    )]
+    pub seed: String,
+    #[options(
+    help = "the chunk index to process"
+    )]
+    pub chunk_index: usize,
+    #[options(
         help = "the elliptic curve to use",
         default = "bls12_381",
         parse(try_from_str = "curve_from_str")

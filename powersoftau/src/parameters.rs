@@ -70,9 +70,9 @@ pub struct CeremonyParams<E> {
     pub powers_length: usize,
     /// The circuit size exponent (ie length will be 2^size), depends on the computation you want to support
     pub size: usize,
-    /// The empirical batch size for the batched accumulator.
-    /// This is a hyper parameter and may be different for each
-    /// curve.
+    // The index of the chunk to process.
+    pub chunk_index: usize,
+    /// The size of each chunk.
     pub batch_size: usize,
     // Size of the used public key
     pub public_key_size: usize,
@@ -87,15 +87,21 @@ pub struct CeremonyParams<E> {
 impl<E: PairingEngine> CeremonyParams<E> {
     /// Constructs a new ceremony parameters object from the type of provided curve
     /// Panics if given batch_size = 0
-    pub fn new(size: usize, batch_size: usize) -> Self {
+    pub fn new_for_first_chunk(size: usize, batch_size: usize) -> Self {
         // create the curve
         let curve = CurveParams::<E>::new();
-        Self::new_with_curve(curve, size, batch_size)
+        Self::new_with_curve(curve, size, batch_size, 0)
+    }
+
+    pub fn new(size: usize, batch_size: usize, chunk_index: usize) -> Self {
+        // create the curve
+        let curve = CurveParams::<E>::new();
+        Self::new_with_curve(curve, size, batch_size, chunk_index)
     }
 
     /// Constructs a new ceremony parameters object from the directly provided curve with parameters
     /// Consider using the `new` method if you want to use one of the pre-implemented curves
-    pub fn new_with_curve(curve: CurveParams<E>, size: usize, batch_size: usize) -> Self {
+    pub fn new_with_curve(curve: CurveParams<E>, size: usize, batch_size: usize, chunk_index: usize) -> Self {
         // assume we're using a 64 byte long hash function such as Blake
         let hash_size = 64;
 
@@ -104,13 +110,19 @@ impl<E: PairingEngine> CeremonyParams<E> {
         // 2^{size+1} - 1
         let powers_g1_length = (powers_length << 1) - 1;
 
+        let (g1_els_size, other_els_size) = chunk_element_sizes(batch_size, chunk_index, powers_g1_length, powers_length);
+
         let accumulator_size =
             // G1 Tau powers
-            powers_g1_length * curve.g1 +
+            g1_els_size * curve.g1 +
             // G2 Tau Powers + Alpha Tau powers + Beta Tau powers
-            powers_length * (curve.g2 + (curve.g1 * 2)) +
+            other_els_size * (curve.g2 + (curve.g1 * 2)) +
             // Beta in G2
             curve.g2 +
+            // Tau Single G1
+            2*curve.g1 +
+            // Tau Single G2
+            2*curve.g2 +
             // Hash of the previous contribution
             hash_size;
 
@@ -122,11 +134,15 @@ impl<E: PairingEngine> CeremonyParams<E> {
 
         let contribution_size =
             // G1 Tau powers (compressed)
-            powers_g1_length * curve.g1_compressed +
+            g1_els_size * curve.g1_compressed +
             // G2 Tau Powers + Alpha Tau powers + Beta Tau powers (compressed)
-            powers_length * (curve.g2_compressed + (curve.g1_compressed * 2)) +
+            other_els_size * (curve.g2_compressed + (curve.g1_compressed * 2)) +
             // Beta in G2
             curve.g2_compressed +
+            // Tau Single G1
+            2 * curve.g1_compressed +
+            // Tau Single G2
+            2 * curve.g2_compressed +
             // Hash of the previous contribution
             hash_size +
             // The public key of the previous contributor
@@ -135,6 +151,7 @@ impl<E: PairingEngine> CeremonyParams<E> {
         Self {
             curve,
             size,
+            chunk_index,
             batch_size,
             accumulator_size,
             public_key_size,
@@ -151,6 +168,10 @@ impl<E: PairingEngine> CeremonyParams<E> {
             UseCompression::Yes => self.contribution_size - self.public_key_size,
             UseCompression::No => self.accumulator_size,
         }
+    }
+
+    pub fn chunk_element_sizes(&self) -> (usize, usize) {
+        chunk_element_sizes(self.batch_size, self.chunk_index, self.powers_g1_length, self.powers_length)
     }
 }
 
@@ -187,4 +208,30 @@ mod tests {
         assert_eq!(p.g1_compressed, g1_compressed);
         assert_eq!(p.g2_compressed, g2_compressed);
     }
+}
+
+pub fn chunk_element_sizes(
+    batch_size: usize,
+    chunk_index: usize,
+    powers_g1_length: usize,
+    powers_length: usize,
+) -> (usize, usize) {
+    let (start, end) = (
+        chunk_index*batch_size,
+        (chunk_index + 1)*batch_size,
+    );
+    let g1_els_in_chunk = if end > powers_g1_length {
+        powers_g1_length - start
+    } else {
+        end - start
+    };
+    let other_els_in_chunk = if end > powers_length && start >= powers_length {
+        0
+    } else if end > powers_length {
+        powers_length - start
+    } else {
+        end - start
+    };
+
+    (g1_els_in_chunk, other_els_in_chunk)
 }

@@ -15,7 +15,7 @@ where
 {
     let powers = 6; // powers of tau
     let batch = 4;
-    let params = CeremonyParams::<E>::new(powers, batch);
+    let params = CeremonyParams::<E>::new_for_first_chunk(powers, batch);
     let compressed = UseCompression::Yes;
     // make 1 power of tau contribution (assume powers of tau gets calculated properly)
     let (_, output, _, _) = setup_verify(compressed, compressed, &params);

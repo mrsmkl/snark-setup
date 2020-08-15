@@ -71,7 +71,7 @@ fn main() -> Result<()> {
 }
 
 fn prepare_phase2<E: PairingEngine + Sync>(opts: &PreparePhase2Opts) -> Result<()> {
-    let parameters = CeremonyParams::<E>::new(opts.power, opts.batch_size);
+    let parameters = CeremonyParams::<E>::new_for_first_chunk(opts.power, opts.batch_size);
     // Try to load response file from disk.
     let reader = OpenOptions::new()
         .read(true)

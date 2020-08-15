@@ -859,6 +859,7 @@ dependencies = [
  "algebra",
  "criterion",
  "gumdrop",
+ "hex 0.4.2",
  "hex-literal",
  "itertools 0.8.2",
  "memmap",
@@ -1222,6 +1223,7 @@ version = "0.1.0"
 dependencies = [
  "algebra",
  "blake2",
+ "blake2s_simd",
  "criterion",
  "crossbeam",
  "ff-fft",
