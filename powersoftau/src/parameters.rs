@@ -101,7 +101,12 @@ impl<E: PairingEngine> CeremonyParams<E> {
 
     /// Constructs a new ceremony parameters object from the directly provided curve with parameters
     /// Consider using the `new` method if you want to use one of the pre-implemented curves
-    pub fn new_with_curve(curve: CurveParams<E>, size: usize, batch_size: usize, chunk_index: usize) -> Self {
+    pub fn new_with_curve(
+        curve: CurveParams<E>,
+        size: usize,
+        batch_size: usize,
+        chunk_index: usize,
+    ) -> Self {
         // assume we're using a 64 byte long hash function such as Blake
         let hash_size = 64;
 
@@ -110,7 +115,8 @@ impl<E: PairingEngine> CeremonyParams<E> {
         // 2^{size+1} - 1
         let powers_g1_length = (powers_length << 1) - 1;
 
-        let (g1_els_size, other_els_size) = chunk_element_sizes(batch_size, chunk_index, powers_g1_length, powers_length);
+        let (g1_els_size, other_els_size) =
+            chunk_element_sizes(batch_size, chunk_index, powers_g1_length, powers_length);
 
         let accumulator_size =
             // G1 Tau powers
@@ -171,7 +177,12 @@ impl<E: PairingEngine> CeremonyParams<E> {
     }
 
     pub fn chunk_element_sizes(&self) -> (usize, usize) {
-        chunk_element_sizes(self.batch_size, self.chunk_index, self.powers_g1_length, self.powers_length)
+        chunk_element_sizes(
+            self.batch_size,
+            self.chunk_index,
+            self.powers_g1_length,
+            self.powers_length,
+        )
     }
 }
 
@@ -216,10 +227,7 @@ pub fn chunk_element_sizes(
     powers_g1_length: usize,
     powers_length: usize,
 ) -> (usize, usize) {
-    let (start, end) = (
-        chunk_index*batch_size,
-        (chunk_index + 1)*batch_size,
-    );
+    let (start, end) = (chunk_index * batch_size, (chunk_index + 1) * batch_size);
     let g1_els_in_chunk = if end > powers_g1_length {
         powers_g1_length - start
     } else {

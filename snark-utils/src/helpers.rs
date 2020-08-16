@@ -504,4 +504,3 @@ fn dense_multiexp_inner<G: AffineCurve>(
         next_region
     }
 }
-

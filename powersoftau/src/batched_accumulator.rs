@@ -126,8 +126,15 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         compression: UseCompression,
         parameters: &'a CeremonyParams<E>,
     ) -> Result<BatchedAccumulator<'a, E>> {
-        let (tau_powers_g1, tau_powers_g2, alpha_tau_powers_g1, beta_tau_powers_g1, beta_g2, tau_single_g1, tau_single_g2) =
-            raw_accumulator::deserialize(input, compression, parameters)?;
+        let (
+            tau_powers_g1,
+            tau_powers_g2,
+            alpha_tau_powers_g1,
+            beta_tau_powers_g1,
+            beta_g2,
+            tau_single_g1,
+            tau_single_g2,
+        ) = raw_accumulator::deserialize(input, compression, parameters)?;
         Ok(BatchedAccumulator {
             tau_powers_g1,
             tau_powers_g2,
@@ -156,11 +163,11 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
 mod tests {
     use super::*;
     use rand::thread_rng;
-    use snark_utils::{batch_exp, calculate_hash, generate_powers_of_tau, derive_rng_from_seed};
+    use snark_utils::{batch_exp, calculate_hash, derive_rng_from_seed, generate_powers_of_tau};
     use test_helpers::{random_point, random_point_vec};
-    use zexe_algebra::{AffineCurve, Bls12_377, Bls12_381, ProjectiveCurve, BW6_761};
-    use tracing_subscriber::fmt::{Subscriber, time::ChronoUtc};
+    use tracing_subscriber::fmt::{time::ChronoUtc, Subscriber};
     use tracing_subscriber::EnvFilter;
+    use zexe_algebra::{AffineCurve, Bls12_377, Bls12_381, ProjectiveCurve, BW6_761};
 
     #[test]
     fn serialize_multiple_batches() {
@@ -310,7 +317,7 @@ mod tests {
     ) {
         let powers_length = 1 << powers;
         let powers_g1_length = (powers_length << 1) - 1;
-        let num_chunks = (powers_g1_length + batch - 1)/batch;
+        let num_chunks = (powers_g1_length + batch - 1) / batch;
 
         for chunk_index in 0..num_chunks {
             let parameters = CeremonyParams::<E>::new(powers, batch, chunk_index);
@@ -337,7 +344,7 @@ mod tests {
                 &privkey,
                 &parameters,
             )
-                .unwrap();
+            .unwrap();
             // ensure that the key is not available to the verifier
             drop(privkey);
 
@@ -374,7 +381,7 @@ mod tests {
                 &privkey,
                 &parameters,
             )
-                .unwrap();
+            .unwrap();
             // ensure that the key is not available to the verifier
             drop(privkey);
 

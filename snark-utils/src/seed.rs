@@ -1,6 +1,6 @@
 use blake2s_simd::Params;
+use rand::{Rng, SeedableRng};
 use rand_chacha::ChaChaRng;
-use rand::{SeedableRng, Rng};
 
 pub const SEED_PERSONALIZATION: &[u8] = b"CELOSEED";
 

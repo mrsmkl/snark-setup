@@ -27,7 +27,15 @@ type SplitBufMut<'a> = (
 );
 
 /// Immutable slices with format [TauG1, TauG2, AlphaG1, BetaG1, BetaG2]
-type SplitBuf<'a> = (&'a [u8], &'a [u8], &'a [u8], &'a [u8], &'a [u8], &'a [u8], &'a [u8]);
+type SplitBuf<'a> = (
+    &'a [u8],
+    &'a [u8],
+    &'a [u8],
+    &'a [u8],
+    &'a [u8],
+    &'a [u8],
+    &'a [u8],
+);
 
 #[allow(type_alias_bounds)]
 type AccumulatorElements<E: PairingEngine> = (
@@ -83,7 +91,8 @@ pub fn init<'a, E: PairingEngine>(
 ) {
     let span = info_span!("initialize");
     let _enter = span.enter();
-    let (tau_g1, tau_g2, alpha_g1, beta_g1, beta_g2, tau_single_g1, tau_single_g2) = split_mut(output, parameters, compressed);
+    let (tau_g1, tau_g2, alpha_g1, beta_g1, beta_g2, tau_single_g1, tau_single_g2) =
+        split_mut(output, parameters, compressed);
     let g1_one = &E::G1Affine::prime_subgroup_generator();
     let g2_one = &E::G2Affine::prime_subgroup_generator();
     rayon::scope(|s| {
@@ -177,7 +186,11 @@ fn read_initial_elements<C: AffineCurve>(buf: &[u8], compressed: UseCompression)
 }
 
 /// Reads a chunk of "amount" elements from the buffer
-fn read_initial_elements_with_amount<C: AffineCurve>(buf: &[u8], amount: usize, compressed: UseCompression) -> Result<Vec<C>> {
+fn read_initial_elements_with_amount<C: AffineCurve>(
+    buf: &[u8],
+    amount: usize,
+    compressed: UseCompression,
+) -> Result<Vec<C>> {
     let batch = amount;
     let size = buffer_size::<C>(compressed);
     let ret = buf[0..batch * size].read_batch(compressed)?;
@@ -205,11 +218,7 @@ pub fn verify<E: PairingEngine>(
     info!("starting...");
 
     // Ensure the key ratios are correctly produced
-    let [
-        tau_g2_s,
-        alpha_g2_s,
-        beta_g2_s,
-    ] = compute_g2_s_key(&key, &digest)?;
+    let [tau_g2_s, alpha_g2_s, beta_g2_s] = compute_g2_s_key(&key, &digest)?;
     // put in tuple form for convenience
     // Check the proofs-of-knowledge for tau/alpha/beta
     let tau_single_g1_check = &(key.tau_g1.0, key.tau_g1.1);
@@ -219,9 +228,21 @@ pub fn verify<E: PairingEngine>(
     let beta_single_g1_check = &(key.beta_g1.0, key.beta_g1.1);
     let beta_single_g2_check = &(beta_g2_s, key.beta_g2);
     let check_ratios = &[
-        (&(key.tau_g1.0, key.tau_g1.1), &(tau_g2_s, key.tau_g2), "Tau G1<>G2"),
-        (&(key.alpha_g1.0, key.alpha_g1.1), &(alpha_g2_s, key.alpha_g2), "Alpha G1<>G2"),
-        (&(key.beta_g1.0, key.beta_g1.1), &(beta_g2_s, key.beta_g2), "Beta G1<>G2"),
+        (
+            &(key.tau_g1.0, key.tau_g1.1),
+            &(tau_g2_s, key.tau_g2),
+            "Tau G1<>G2",
+        ),
+        (
+            &(key.alpha_g1.0, key.alpha_g1.1),
+            &(alpha_g2_s, key.alpha_g2),
+            "Alpha G1<>G2",
+        ),
+        (
+            &(key.beta_g1.0, key.beta_g1.1),
+            &(beta_g2_s, key.beta_g2),
+            "Beta G1<>G2",
+        ),
     ];
     for (a, b, err) in check_ratios {
         check_same_ratio::<E>(a, b, err)?;
@@ -232,17 +253,22 @@ pub fn verify<E: PairingEngine>(
     // todo: check that in_tau_g2 is actually not required
     let (in_tau_g1, _, in_alpha_g1, in_beta_g1, in_beta_g2, in_tau_single_g1, in_tau_single_g2) =
         split(input, parameters, compressed_input);
-    let (tau_g1, tau_g2, alpha_g1, beta_g1, beta_g2, tau_single_g1, tau_single_g2) = split(output, parameters, compressed_output);
+    let (tau_g1, tau_g2, alpha_g1, beta_g1, beta_g2, tau_single_g1, tau_single_g2) =
+        split(output, parameters, compressed_output);
 
     // Ensure that the initial conditions are correctly formed (first 2 elements)
     // We allocate a G1 vector of length 2 and re-use it for our G1 elements.
     // We keep the values of the Tau G1/G2 telements for later use.
 
     let (g1_check, g2_check) = {
-        let before_tau_single_g1 = read_initial_elements::<E::G1Affine>(in_tau_single_g1, compressed_input)?;
-        let after_tau_single_g1 = read_initial_elements::<E::G1Affine>(tau_single_g1, compressed_output)?;
-        let before_tau_single_g2 = read_initial_elements::<E::G2Affine>(in_tau_single_g2, compressed_input)?;
-        let after_tau_single_g2 = read_initial_elements::<E::G2Affine>(tau_single_g2, compressed_output)?;
+        let before_tau_single_g1 =
+            read_initial_elements::<E::G1Affine>(in_tau_single_g1, compressed_input)?;
+        let after_tau_single_g1 =
+            read_initial_elements::<E::G1Affine>(tau_single_g1, compressed_output)?;
+        let before_tau_single_g2 =
+            read_initial_elements::<E::G2Affine>(in_tau_single_g2, compressed_input)?;
+        let after_tau_single_g2 =
+            read_initial_elements::<E::G2Affine>(tau_single_g2, compressed_output)?;
         let g1_check = (after_tau_single_g1[0], after_tau_single_g1[1]);
         let g2_check = (after_tau_single_g2[0], after_tau_single_g2[1]);
 
@@ -302,8 +328,8 @@ pub fn verify<E: PairingEngine>(
 
     debug!("initial elements were computed correctly");
 
-    let start = parameters.chunk_index*parameters.batch_size;
-    let end = (parameters.chunk_index + 1)*parameters.batch_size;
+    let start = parameters.chunk_index * parameters.batch_size;
+    let end = (parameters.chunk_index + 1) * parameters.batch_size;
     let (g1_els_in_chunk, other_els_in_chunk) = parameters.chunk_element_sizes();
 
     // preallocate 2 vectors per batch
@@ -388,8 +414,17 @@ pub fn serialize<E: PairingEngine>(
     compressed: UseCompression,
     parameters: &CeremonyParams<E>,
 ) -> Result<()> {
-    let (in_tau_g1, in_tau_g2, in_alpha_g1, in_beta_g1, in_beta_g2, in_tau_single_g1, in_tau_single_g2) = elements;
-    let (tau_g1, tau_g2, alpha_g1, beta_g1, beta_g2, tau_single_g1, tau_single_g2) = split_mut(output, parameters, compressed);
+    let (
+        in_tau_g1,
+        in_tau_g2,
+        in_alpha_g1,
+        in_beta_g1,
+        in_beta_g2,
+        in_tau_single_g1,
+        in_tau_single_g2,
+    ) = elements;
+    let (tau_g1, tau_g2, alpha_g1, beta_g1, beta_g2, tau_single_g1, tau_single_g2) =
+        split_mut(output, parameters, compressed);
 
     tau_g1.write_batch(&in_tau_g1, compressed)?;
     tau_g2.write_batch(&in_tau_g2, compressed)?;
@@ -410,8 +445,15 @@ pub fn deserialize<E: PairingEngine>(
     parameters: &CeremonyParams<E>,
 ) -> Result<AccumulatorElements<E>> {
     // get an immutable reference to the input chunks
-    let (in_tau_g1, in_tau_g2, in_alpha_g1, in_beta_g1, in_beta_g2, in_tau_single_g1, in_tau_single_g2) =
-        split(&input, parameters, compressed);
+    let (
+        in_tau_g1,
+        in_tau_g2,
+        in_alpha_g1,
+        in_beta_g1,
+        in_beta_g2,
+        in_tau_single_g1,
+        in_tau_single_g2,
+    ) = split(&input, parameters, compressed);
 
     // deserialize each part of the buffer separately
     let tau_g1 = in_tau_g1.read_batch(compressed)?;
@@ -422,7 +464,15 @@ pub fn deserialize<E: PairingEngine>(
     let tau_single_g1 = in_tau_single_g1.read_batch(compressed)?;
     let tau_single_g2 = in_tau_single_g2.read_batch(compressed)?;
 
-    Ok((tau_g1, tau_g2, alpha_g1, beta_g1, beta_g2, tau_single_g1, tau_single_g2))
+    Ok((
+        tau_g1,
+        tau_g2,
+        alpha_g1,
+        beta_g1,
+        beta_g2,
+        tau_single_g1,
+        tau_single_g2,
+    ))
 }
 
 /// Reads an input buffer and a secret key **which must be destroyed after this function is executed**.
@@ -434,8 +484,15 @@ pub fn decompress<E: PairingEngine>(
     let compressed_input = UseCompression::Yes;
     let compressed_output = UseCompression::No;
     // get an immutable reference to the compressed input chunks
-    let (in_tau_g1, in_tau_g2, in_alpha_g1, in_beta_g1, mut in_beta_g2, in_tau_single_g1, in_tau_single_g2) =
-        split(&input, parameters, compressed_input);
+    let (
+        in_tau_g1,
+        in_tau_g2,
+        in_alpha_g1,
+        in_beta_g1,
+        mut in_beta_g2,
+        in_tau_single_g1,
+        in_tau_single_g2,
+    ) = split(&input, parameters, compressed_input);
 
     // get mutable refs to the decompressed outputs
     let (tau_g1, tau_g2, alpha_g1, beta_g1, beta_g2, tau_single_g1, tau_single_g2) =
@@ -456,7 +513,6 @@ pub fn decompress<E: PairingEngine>(
     // decompress tau_single_g2
     decompress_buffer::<E::G2Affine>(tau_single_g2, in_tau_single_g2, (0, 2))
         .expect("could not decompress the TauSingleG2 elements");
-
 
     let (g1_els_in_chunk, other_els_in_chunk) = parameters.chunk_element_sizes();
     // load `batch_size` chunks on each iteration and decompress them
@@ -505,8 +561,15 @@ pub fn contribute<E: PairingEngine>(
     let (input, compressed_input) = (input.0, input.1);
     let (output, compressed_output) = (output.0, output.1);
     // get an immutable reference to the input chunks
-    let (in_tau_g1, in_tau_g2, in_alpha_g1, in_beta_g1, mut in_beta_g2, in_tau_single_g1, in_tau_single_g2) =
-        split(&input, parameters, compressed_input);
+    let (
+        in_tau_g1,
+        in_tau_g2,
+        in_alpha_g1,
+        in_beta_g1,
+        mut in_beta_g2,
+        in_tau_single_g1,
+        in_tau_single_g2,
+    ) = split(&input, parameters, compressed_input);
 
     // get mutable refs to the outputs
     let (tau_g1, tau_g2, alpha_g1, beta_g1, beta_g2, tau_single_g1, tau_single_g2) =
@@ -542,8 +605,8 @@ pub fn contribute<E: PairingEngine>(
         tau_single_g2.write_batch(&tau_single_g2_el, compressed_output)?;
     }
 
-    let start = parameters.chunk_index*parameters.batch_size;
-    let end = (parameters.chunk_index + 1)*parameters.batch_size;
+    let start = parameters.chunk_index * parameters.batch_size;
+    let end = (parameters.chunk_index + 1) * parameters.batch_size;
     let (g1_els_in_chunk, other_els_in_chunk) = parameters.chunk_element_sizes();
     // load `batch_size` chunks on each iteration and perform the transformation
     debug!("contributing to chunk from {} to {}", start, end);
@@ -716,10 +779,18 @@ fn split_mut<'a, E: PairingEngine>(
     let (alpha_g1, others) = others.split_at_mut(g1_size * other_els_in_chunk);
     let (beta_g1, others) = others.split_at_mut(g1_size * other_els_in_chunk);
     let (beta_g2, others) = others.split_at_mut(g2_size);
-    let (tau_single_g1, tau_single_g2) = others.split_at_mut(2*g1_size);
+    let (tau_single_g1, tau_single_g2) = others.split_at_mut(2 * g1_size);
     // we take up to g2_size for beta_g2, since there might be other
     // elements after it at the end of the buffer
-    (tau_g1, tau_g2, alpha_g1, beta_g1, beta_g2, tau_single_g1, &mut tau_single_g2[0..2*g2_size])
+    (
+        tau_g1,
+        tau_g2,
+        alpha_g1,
+        beta_g1,
+        beta_g2,
+        tau_single_g1,
+        &mut tau_single_g2[0..2 * g2_size],
+    )
 }
 
 /// Splits the full buffer in 5 non overlapping immutable slice.
@@ -740,8 +811,16 @@ fn split<'a, E: PairingEngine>(
     let (alpha_g1, others) = others.split_at(g1_size * other_els_in_chunk);
     let (beta_g1, others) = others.split_at(g1_size * other_els_in_chunk);
     let (beta_g2, others) = others.split_at(g2_size);
-    let (tau_single_g1, tau_single_g2) = others.split_at(2*g1_size);
+    let (tau_single_g1, tau_single_g2) = others.split_at(2 * g1_size);
     // we take up to g2_size for beta_g2, since there might be other
     // elements after it at the end of the buffer
-    (tau_g1, tau_g2, alpha_g1, beta_g1, &beta_g2, &tau_single_g1, &tau_single_g2[0..2*g2_size])
+    (
+        tau_g1,
+        tau_g2,
+        alpha_g1,
+        beta_g1,
+        &beta_g2,
+        &tau_single_g1,
+        &tau_single_g2[0..2 * g2_size],
+    )
 }

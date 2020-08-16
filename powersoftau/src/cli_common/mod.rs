@@ -25,13 +25,9 @@ pub enum ProvingSystem {
 #[derive(Debug, Options, Clone)]
 pub struct PowersOfTauOpts {
     help: bool,
-    #[options(
-        help = "the seed to derive private elements from"
-    )]
+    #[options(help = "the seed to derive private elements from")]
     pub seed: String,
-    #[options(
-    help = "the chunk index to process"
-    )]
+    #[options(help = "the chunk index to process")]
     pub chunk_index: usize,
     #[options(
         help = "the elliptic curve to use",
