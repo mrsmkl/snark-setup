@@ -450,11 +450,11 @@ pub fn decompress<E: PairingEngine>(
     }
 
     // decompress tau_single_g1
-    decompress_buffer::<E::G1Affine>(tau_single_g1, in_tau_single_g1, (0, 3))
+    decompress_buffer::<E::G1Affine>(tau_single_g1, in_tau_single_g1, (0, 2))
         .expect("could not decompress the TauSingleG1 elements");
 
     // decompress tau_single_g2
-    decompress_buffer::<E::G2Affine>(tau_single_g2, in_tau_single_g2, (0, 3))
+    decompress_buffer::<E::G2Affine>(tau_single_g2, in_tau_single_g2, (0, 2))
         .expect("could not decompress the TauSingleG2 elements");
 
 
