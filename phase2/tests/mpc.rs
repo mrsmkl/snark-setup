@@ -14,7 +14,7 @@ where
     C: Clone + ConstraintSynthesizer<E::Fr>,
 {
     let powers = 6; // powers of tau
-    let batch = 4;
+    let batch = ((1 << powers) << 1) - 1;
     let params = CeremonyParams::<E>::new_for_first_chunk(powers, batch);
     let compressed = UseCompression::Yes;
     // make 1 power of tau contribution (assume powers of tau gets calculated properly)

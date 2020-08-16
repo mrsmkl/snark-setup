@@ -309,7 +309,7 @@ mod tests {
         prepared_phase1_size: usize,
         compressed: UseCompression,
     ) {
-        let batch = 2;
+        let batch = ((1 << powers) << 1) - 1;
         let params = CeremonyParams::<E>::new_for_first_chunk(powers, batch);
         let (_, output, _, _) = setup_verify(compressed, compressed, &params);
         let accumulator = BatchedAccumulator::deserialize(&output, compressed, &params).unwrap();
