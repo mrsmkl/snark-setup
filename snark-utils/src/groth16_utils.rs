@@ -1,6 +1,6 @@
 /// Utilities to read/write and convert the Powers of Tau from Phase 1
 /// to Phase 2-compatible Lagrange Coefficients.
-use crate::{buffer_size, Deserializer, Result, Serializer, UseCompression};
+use crate::{buffer_size, CheckForCorrectness, Deserializer, Result, Serializer, UseCompression};
 use std::fmt::Debug;
 use std::io::Write;
 use tracing::{debug, info, info_span};
@@ -170,6 +170,7 @@ impl<E: PairingEngine> Groth16Params<E> {
     pub fn read(
         reader: &mut [u8],
         compressed: UseCompression,
+        check_input_for_correctness: CheckForCorrectness,
         phase1_size: usize,
         num_constraints: usize,
     ) -> Result<Groth16Params<E>> {
@@ -177,9 +178,9 @@ impl<E: PairingEngine> Groth16Params<E> {
         let _enter = span.enter();
 
         let mut reader = std::io::Cursor::new(reader);
-        let alpha_g1 = reader.read_element(compressed)?;
-        let beta_g1 = reader.read_element(compressed)?;
-        let beta_g2 = reader.read_element(compressed)?;
+        let alpha_g1 = reader.read_element(compressed, check_input_for_correctness)?;
+        let beta_g1 = reader.read_element(compressed, check_input_for_correctness)?;
+        let beta_g2 = reader.read_element(compressed, check_input_for_correctness)?;
 
         let position = reader.position() as usize;
         let reader = &mut &reader.get_mut()[position..];
@@ -193,13 +194,22 @@ impl<E: PairingEngine> Groth16Params<E> {
         // note: '??' is used for getting the result from the threaded operation,
         // and then getting the result from the function inside the thread)
         Ok(crossbeam::scope(|s| -> Result<_> {
-            let coeffs_g1 = s.spawn(|_| in_coeffs_g1.read_batch::<E::G1Affine>(compressed));
-            let coeffs_g2 = s.spawn(|_| in_coeffs_g2.read_batch::<E::G2Affine>(compressed));
-            let alpha_coeffs_g1 =
-                s.spawn(|_| in_alpha_coeffs_g1.read_batch::<E::G1Affine>(compressed));
-            let beta_coeffs_g1 =
-                s.spawn(|_| in_beta_coeffs_g1.read_batch::<E::G1Affine>(compressed));
-            let h_g1 = s.spawn(|_| in_h_g1.read_batch::<E::G1Affine>(compressed));
+            let coeffs_g1 = s.spawn(|_| {
+                in_coeffs_g1.read_batch::<E::G1Affine>(compressed, check_input_for_correctness)
+            });
+            let coeffs_g2 = s.spawn(|_| {
+                in_coeffs_g2.read_batch::<E::G2Affine>(compressed, check_input_for_correctness)
+            });
+            let alpha_coeffs_g1 = s.spawn(|_| {
+                in_alpha_coeffs_g1
+                    .read_batch::<E::G1Affine>(compressed, check_input_for_correctness)
+            });
+            let beta_coeffs_g1 = s.spawn(|_| {
+                in_beta_coeffs_g1.read_batch::<E::G1Affine>(compressed, check_input_for_correctness)
+            });
+            let h_g1 = s.spawn(|_| {
+                in_h_g1.read_batch::<E::G1Affine>(compressed, check_input_for_correctness)
+            });
 
             let coeffs_g1 = coeffs_g1.join()??;
             debug!("read tau g1 Coefficients");

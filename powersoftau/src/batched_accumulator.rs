@@ -4,10 +4,10 @@ use zexe_algebra::PairingEngine as Engine;
 
 use super::{
     keypair::{PrivateKey, PublicKey},
-    parameters::{CeremonyParams, CheckForCorrectness},
+    parameters::CeremonyParams,
     raw::raw_accumulator,
 };
-use snark_utils::{blank_hash, GenericArray, Result, UseCompression, U64};
+use snark_utils::{blank_hash, CheckForCorrectness, GenericArray, Result, UseCompression, U64};
 /// The `BatchedAccumulator` is an object that participants of the ceremony contribute
 /// randomness to. This object contains powers of trapdoor `tau` in G1 and in G2 over
 /// fixed generators, and additionally in G1 over two other generators of exponents
@@ -27,10 +27,6 @@ pub struct BatchedAccumulator<'a, E: Engine> {
     pub beta_tau_powers_g1: Vec<E::G1Affine>,
     /// beta
     pub beta_g2: E::G2Affine,
-    /// tau single g1
-    pub tau_single_g1: Vec<E::G1Affine>,
-    /// tau single g2
-    pub tau_single_g2: Vec<E::G2Affine>,
     /// Hash chain hash
     pub hash: GenericArray<u8, U64>,
     /// The parameters used for the setup of this accumulator
@@ -64,12 +60,12 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         output: &mut [u8],
         input_is_compressed: UseCompression,
         compress_the_output: UseCompression,
-        _check_input_for_correctness: CheckForCorrectness,
+        check_input_for_correctness: CheckForCorrectness,
         key: &PrivateKey<E>,
         parameters: &'a CeremonyParams<E>,
     ) -> Result<()> {
         raw_accumulator::contribute(
-            (input, input_is_compressed),
+            (input, input_is_compressed, check_input_for_correctness),
             (output, compress_the_output),
             key,
             parameters,
@@ -86,13 +82,13 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         digest: &[u8],
         input_is_compressed: UseCompression,
         output_is_compressed: UseCompression,
-        _check_input_for_correctness: CheckForCorrectness,
-        _check_output_for_correctness: CheckForCorrectness,
+        check_input_for_correctness: CheckForCorrectness,
+        check_output_for_correctness: CheckForCorrectness,
         parameters: &'a CeremonyParams<E>,
     ) -> Result<()> {
         raw_accumulator::verify(
-            (input, input_is_compressed),
-            (output, output_is_compressed),
+            (input, input_is_compressed, check_input_for_correctness),
+            (output, output_is_compressed, check_output_for_correctness),
             key,
             digest,
             parameters,
@@ -112,8 +108,6 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
             self.alpha_tau_powers_g1.as_ref(),
             self.beta_tau_powers_g1.as_ref(),
             &self.beta_g2,
-            self.tau_single_g1.as_ref(),
-            self.tau_single_g2.as_ref(),
         );
 
         raw_accumulator::serialize(elements, output, compression, parameters)?;
@@ -124,25 +118,22 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
     pub fn deserialize(
         input: &[u8],
         compression: UseCompression,
+        check_input_for_correctness: CheckForCorrectness,
         parameters: &'a CeremonyParams<E>,
     ) -> Result<BatchedAccumulator<'a, E>> {
-        let (
-            tau_powers_g1,
-            tau_powers_g2,
-            alpha_tau_powers_g1,
-            beta_tau_powers_g1,
-            beta_g2,
-            tau_single_g1,
-            tau_single_g2,
-        ) = raw_accumulator::deserialize(input, compression, parameters)?;
+        let (tau_powers_g1, tau_powers_g2, alpha_tau_powers_g1, beta_tau_powers_g1, beta_g2) =
+            raw_accumulator::deserialize(
+                input,
+                compression,
+                check_input_for_correctness,
+                parameters,
+            )?;
         Ok(BatchedAccumulator {
             tau_powers_g1,
             tau_powers_g2,
             alpha_tau_powers_g1,
             beta_tau_powers_g1,
             beta_g2,
-            tau_single_g1,
-            tau_single_g2,
             hash: blank_hash(),
             parameters,
         })
@@ -151,10 +142,10 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
     pub fn decompress(
         input: &[u8],
         output: &mut [u8],
-        _check_input_for_correctness: CheckForCorrectness,
+        check_input_for_correctness: CheckForCorrectness,
         parameters: &'a CeremonyParams<E>,
     ) -> Result<()> {
-        raw_accumulator::decompress(input, output, parameters)?;
+        raw_accumulator::decompress(input, check_input_for_correctness, output, parameters)?;
         Ok(())
     }
 }

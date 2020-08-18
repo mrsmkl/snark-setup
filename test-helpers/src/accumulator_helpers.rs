@@ -1,10 +1,5 @@
-use powersoftau::{
-    keypair::*,
-    parameters::{CeremonyParams, CheckForCorrectness},
-    BatchedAccumulator,
-};
+use powersoftau::{keypair::*, parameters::CeremonyParams, BatchedAccumulator};
 use rand::thread_rng;
-use snark_utils::UseCompression;
 use snark_utils::*;
 use zexe_algebra::PairingEngine;
 
@@ -52,7 +47,9 @@ pub fn generate_input<E: PairingEngine>(
     BatchedAccumulator::generate_initial(&mut output, compressed, &parameters).unwrap();
     let mut input = vec![0; len];
     input.copy_from_slice(&output);
-    let before = BatchedAccumulator::deserialize(&output, compressed, &parameters).unwrap();
+    let before =
+        BatchedAccumulator::deserialize(&output, compressed, CheckForCorrectness::Yes, &parameters)
+            .unwrap();
     (input, before)
 }
 

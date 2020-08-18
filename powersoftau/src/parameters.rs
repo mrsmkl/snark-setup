@@ -186,15 +186,6 @@ impl<E: PairingEngine> CeremonyParams<E> {
     }
 }
 
-/// Determines if points should be checked for correctness during deserialization.
-/// This is not necessary for participants, because a transcript verifier can
-/// check this theirself.
-#[derive(Copy, Clone, PartialEq)]
-pub enum CheckForCorrectness {
-    Yes,
-    No,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

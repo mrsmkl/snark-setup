@@ -6,7 +6,7 @@ use zexe_r1cs_core::ConstraintSynthesizer;
 use zexe_r1cs_std::test_constraint_counter::ConstraintCounter;
 
 use phase2::parameters::{circuit_to_qap, MPCParameters};
-use snark_utils::{log_2, Groth16Params, Result, UseCompression};
+use snark_utils::{log_2, CheckForCorrectness, Groth16Params, Result, UseCompression};
 
 use memmap::MmapOptions;
 use std::fs::OpenOptions;
@@ -94,6 +94,7 @@ pub fn new(opt: &NewOpts) -> Result<()> {
     let phase1 = Groth16Params::<BW6_761>::read(
         &mut phase1_transcript,
         COMPRESSION,
+        CheckForCorrectness::No, // No need to check for correctness, since this has been processed by the coordinator.
         2usize.pow(opt.phase1_size),
         phase2_size,
     )?;

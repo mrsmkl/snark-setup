@@ -4,7 +4,9 @@
 //! Dispose of the private key ASAP once it's been used.
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use rand::Rng;
-use snark_utils::{hash_to_g2, Deserializer, HashWriter, Result, Serializer, UseCompression};
+use snark_utils::{
+    hash_to_g2, CheckForCorrectness, Deserializer, HashWriter, Result, Serializer, UseCompression,
+};
 use std::fmt;
 use std::io::{self, Read, Write};
 use zexe_algebra::{
@@ -89,10 +91,10 @@ impl<E: PairingEngine> PublicKey<E> {
     /// Reads the key's **uncompressed** points from the provided
     /// reader
     pub fn read<R: Read>(reader: &mut R) -> Result<PublicKey<E>> {
-        let delta_after = reader.read_element(UseCompression::No)?;
-        let s = reader.read_element(UseCompression::No)?;
-        let s_delta = reader.read_element(UseCompression::No)?;
-        let r_delta = reader.read_element(UseCompression::No)?;
+        let delta_after = reader.read_element(UseCompression::No, CheckForCorrectness::Yes)?;
+        let s = reader.read_element(UseCompression::No, CheckForCorrectness::Yes)?;
+        let s_delta = reader.read_element(UseCompression::No, CheckForCorrectness::Yes)?;
+        let r_delta = reader.read_element(UseCompression::No, CheckForCorrectness::Yes)?;
         let mut transcript = [0u8; 64];
         reader.read_exact(&mut transcript)?;
 
