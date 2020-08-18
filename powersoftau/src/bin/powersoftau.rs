@@ -1,6 +1,6 @@
 use gumdrop::Options;
 use powersoftau::cli_common::{
-    contribute, new_challenge, transform, Command, CurveKind, PowersOfTauOpts,
+    contribute, new_challenge, transform, transform_full, Command, CurveKind, PowersOfTauOpts,
 };
 use powersoftau::parameters::CeremonyParams;
 use snark_utils::{beacon_randomness, derive_rng_from_seed};
@@ -60,9 +60,18 @@ fn execute_cmd<E: Engine>(opts: PowersOfTauOpts) {
             let rng = derive_rng_from_seed(&beacon_randomness(beacon_hash));
             contribute(&opt.challenge_fname, &opt.response_fname, &parameters, rng);
         }
-        Command::VerifyAndTransform(opt) => {
+        Command::VerifyAndTransformChunk(opt) => {
             // we receive a previous participation, verify it, and generate a new challenge from it
             transform(
+                &opt.challenge_fname,
+                &opt.response_fname,
+                &opt.new_challenge_fname,
+                &parameters,
+            );
+        }
+        Command::VerifyAndTransformFull(opt) => {
+            // we receive a previous participation, verify it, and generate a new challenge from it
+            transform_full(
                 &opt.challenge_fname,
                 &opt.response_fname,
                 &opt.new_challenge_fname,

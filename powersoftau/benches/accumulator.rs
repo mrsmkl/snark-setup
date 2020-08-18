@@ -101,7 +101,7 @@ fn verify_benchmark(c: &mut Criterion) {
                 &power,
                 |b, _power| {
                     b.iter(|| {
-                        RawAccumulator::verify_transformation(
+                        RawAccumulator::verify_transformation_chunk(
                             &input,
                             &output,
                             &pubkey,

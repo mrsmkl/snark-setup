@@ -46,7 +46,6 @@ type AccumulatorElementsRef<'a, E: PairingEngine> = (
     &'a E::G2Affine,
 );
 
-/*
 /// Helper function to iterate over the accumulator in chunks.
 /// `action` will perform an action on the chunk
 use itertools::{Itertools, MinMaxResult};
@@ -67,7 +66,6 @@ fn iter_chunk(
         })
         .collect::<Result<_>>()
 }
- */
 
 /// Populates the output buffer with an empty accumulator as dictated by Parameters and compression
 pub fn init<'a, E: PairingEngine>(
@@ -249,7 +247,7 @@ pub fn verify_chunk<E: PairingEngine>(
     info!("starting...");
     // Split the buffers
     // todo: check that in_tau_g2 is actually not required
-    let (in_tau_g1, _, in_alpha_g1, in_beta_g1, in_beta_g2) =
+    let (in_tau_g1, in_tau_g2, in_alpha_g1, in_beta_g1, in_beta_g2) =
         split(input, parameters, compressed_input);
     let (tau_g1, tau_g2, alpha_g1, beta_g1, beta_g2) = split(output, parameters, compressed_output);
 
@@ -305,6 +303,11 @@ pub fn verify_chunk<E: PairingEngine>(
         if after_g1[0] != E::G1Affine::prime_subgroup_generator() {
             return Err(VerificationError::InvalidGenerator(ElementType::TauG1).into());
         }
+        let before_g2 = read_initial_elements::<E::G2Affine>(
+            in_tau_g2,
+            compressed_input,
+            check_input_for_correctness,
+        )?;
         let after_g2 = read_initial_elements::<E::G2Affine>(
             tau_g2,
             compressed_output,
@@ -318,6 +321,12 @@ pub fn verify_chunk<E: PairingEngine>(
             &(before_g1[1], after_g1[1]),
             tau_single_g2_check,
             "Before-After: Tau G1",
+        )?;
+        // Check Tau was multiplied correctly in G2
+        check_same_ratio::<E>(
+            tau_single_g1_check,
+            &(before_g2[1], after_g2[1]),
+            "Before-After: Tau G2",
         )?;
 
         // Check Alpha and Beta were multiplied correctly in G1.
@@ -434,7 +443,7 @@ pub fn verify_chunk<E: PairingEngine>(
 /// given the `PublicKey` and the so-far hash of the accumulator.
 /// This verifies a single chunk and checks only that the points
 /// are not zero and that they're in the prime order subgroup.
-pub fn verify_combined<E: PairingEngine>(
+pub fn verify_full<E: PairingEngine>(
     (input, compressed_input, check_input_for_correctness): (
         &[u8],
         UseCompression,
@@ -457,29 +466,15 @@ pub fn verify_combined<E: PairingEngine>(
     // Ensure the key ratios are correctly produced
     let [tau_g2_s, alpha_g2_s, beta_g2_s] = compute_g2_s_key(&key, &digest)?;
     // put in tuple form for convenience
+    let tau_g1_check = &(key.tau_g1.0, key.tau_g1.1);
+    let tau_g2_check = &(tau_g2_s, key.tau_g2);
+    let alpha_g2_check = &(alpha_g2_s, key.alpha_g2);
+    let beta_g2_check = &(beta_g2_s, key.beta_g2);
     // Check the proofs-of-knowledge for tau/alpha/beta
-    let tau_single_g1_check = &(key.tau_g1.0, key.tau_g1.1);
-    let tau_single_g2_check = &(tau_g2_s, key.tau_g2);
-    //let alpha_single_g1_check = &(key.alpha_g1.0, key.alpha_g1.1);
-    let alpha_single_g2_check = &(alpha_g2_s, key.alpha_g2);
-    let beta_single_g1_check = &(key.beta_g1.0, key.beta_g1.1);
-    let beta_single_g2_check = &(beta_g2_s, key.beta_g2);
     let check_ratios = &[
-        (
-            &(key.tau_g1.0, key.tau_g1.1),
-            &(tau_g2_s, key.tau_g2),
-            "Tau G1<>G2",
-        ),
-        (
-            &(key.alpha_g1.0, key.alpha_g1.1),
-            &(alpha_g2_s, key.alpha_g2),
-            "Alpha G1<>G2",
-        ),
-        (
-            &(key.beta_g1.0, key.beta_g1.1),
-            &(beta_g2_s, key.beta_g2),
-            "Beta G1<>G2",
-        ),
+        (key.tau_g1, tau_g2_check, "Tau G1<>G2"),
+        (key.alpha_g1, alpha_g2_check, "Alpha G1<>G2"),
+        (key.beta_g1, beta_g2_check, "Beta G1<>G2"),
     ];
     for (a, b, err) in check_ratios {
         check_same_ratio::<E>(a, b, err)?;
@@ -487,151 +482,170 @@ pub fn verify_combined<E: PairingEngine>(
     debug!("key ratios were correctly produced");
 
     // Split the buffers
-    // todo: check that in_tau_g2 is actually not required
-    let (in_tau_g1, _, in_alpha_g1, in_beta_g1, in_beta_g2) =
+    let (in_tau_g1, in_tau_g2, in_alpha_g1, in_beta_g1, in_beta_g2) =
         split(input, parameters, compressed_input);
     let (tau_g1, tau_g2, alpha_g1, beta_g1, beta_g2) = split(output, parameters, compressed_output);
 
     // Ensure that the initial conditions are correctly formed (first 2 elements)
     // We allocate a G1 vector of length 2 and re-use it for our G1 elements.
     // We keep the values of the Tau G1/G2 telements for later use.
-
-    /*
     let (g1_check, g2_check) = {
+        let mut before_g1 = read_initial_elements::<E::G1Affine>(
+            in_tau_g1,
+            compressed_input,
+            check_input_for_correctness,
+        )?;
+        let mut after_g1 = read_initial_elements::<E::G1Affine>(
+            tau_g1,
+            compressed_output,
+            check_output_for_correctness,
+        )?;
+        if after_g1[0] != E::G1Affine::prime_subgroup_generator() {
+            return Err(VerificationError::InvalidGenerator(ElementType::TauG1).into());
+        }
+        let before_g2 = read_initial_elements::<E::G2Affine>(
+            in_tau_g2,
+            compressed_input,
+            check_input_for_correctness,
+        )?;
+        let after_g2 = read_initial_elements::<E::G2Affine>(
+            tau_g2,
+            compressed_output,
+            check_output_for_correctness,
+        )?;
+        if after_g2[0] != E::G2Affine::prime_subgroup_generator() {
+            return Err(VerificationError::InvalidGenerator(ElementType::TauG2).into());
+        }
+        let g1_check = (after_g1[0], after_g1[1]);
+        let g2_check = (after_g2[0], after_g2[1]);
 
-        let g1_check = (after_tau_single_g1[0], after_tau_single_g1[1]);
-        let g2_check = (after_tau_single_g2[0], after_tau_single_g2[1]);
-
-        if parameters.chunk_index == 0 {
-            let mut before_g1 = read_initial_elements::<E::G1Affine>(in_tau_g1, compressed_input)?;
-            let mut after_g1 = read_initial_elements::<E::G1Affine>(tau_g1, compressed_output)?;
-            if after_g1[0] != E::G1Affine::prime_subgroup_generator() {
-                return Err(VerificationError::InvalidGenerator(ElementType::TauG1).into());
-            }
-            let after_g2 = read_initial_elements::<E::G2Affine>(tau_g2, compressed_output)?;
-            if after_g2[0] != E::G2Affine::prime_subgroup_generator() {
-                return Err(VerificationError::InvalidGenerator(ElementType::TauG2).into());
-            }
-            // Check TauG1 -> TauG2
-            check_same_ratio::<E>(
-                &(before_g1[1], after_g1[1]),
-                tau_single_g2_check,
-                "Before-After: Tau [1] G1<>G2",
+        // Check TauG1 -> TauG2
+        check_same_ratio::<E>(
+            &(before_g1[1], after_g1[1]),
+            tau_g2_check,
+            "Before-After: Tau [1] G1<>G2",
+        )?;
+        check_same_ratio::<E>(
+            tau_g1_check,
+            &(before_g2[1], after_g2[1]),
+            "Before-After: Tau [1] G1<>G2",
+        )?;
+        for (before, after, check) in &[
+            (in_alpha_g1, alpha_g1, alpha_g2_check),
+            (in_beta_g1, beta_g1, beta_g2_check),
+        ] {
+            before.read_batch_preallocated(
+                &mut before_g1,
+                compressed_input,
+                check_input_for_correctness,
             )?;
-
-            for (before, after, check) in &[
-                (in_alpha_g1, alpha_g1, alpha_single_g2_check),
-                (in_beta_g1, beta_g1, beta_single_g2_check),
-            ] {
-                before.read_batch_preallocated(&mut before_g1, compressed_input)?;
-                after.read_batch_preallocated(&mut after_g1, compressed_output)?;
-                check_same_ratio::<E>(
-                    &(before_g1[0], after_g1[0]),
-                    check,
-                    "Before-After: Alpha/Beta[0]",
-                )?;
-            }
-
-            let before_beta_g2 = (&*in_beta_g2).read_element::<E::G2Affine>(compressed_input)?;
-            let after_beta_g2 = (&*beta_g2).read_element::<E::G2Affine>(compressed_output)?;
-            check_same_ratio::<E>(
-                beta_single_g1_check,
-                &(before_beta_g2, after_beta_g2),
-                "Before-After: Beta Single G2[0] G1<>G2",
+            after.read_batch_preallocated(
+                &mut after_g1,
+                compressed_output,
+                check_output_for_correctness,
             )?;
-
             check_same_ratio::<E>(
-                tau_single_g1_check,
-                &(before_tau_single_g2[1], after_tau_single_g2[1]),
-                "Before-After: Tau Single G2 Other[1] G1<>G2",
-            )?;
-
-            check_same_ratio::<E>(
-                &(before_tau_single_g1[1], after_tau_single_g1[1]),
-                tau_single_g2_check,
-                "Before-After: Tau Single G2 Other[1] G1<>G2",
+                &(before_g1[0], after_g1[0]),
+                check,
+                "Before-After: Alpha[0] G1<>G2",
             )?;
         }
+
+        let before_beta_g2 = (&*in_beta_g2)
+            .read_element::<E::G2Affine>(compressed_input, check_input_for_correctness)?;
+        let after_beta_g2 = (&*beta_g2)
+            .read_element::<E::G2Affine>(compressed_output, check_output_for_correctness)?;
+        check_same_ratio::<E>(
+            &(before_g1[0], after_g1[0]),
+            &(before_beta_g2, after_beta_g2),
+            "Before-After: Other[0] G1<>G2",
+        )?;
 
         (g1_check, g2_check)
     };
 
     debug!("initial elements were computed correctly");
 
-    let start = parameters.chunk_index * parameters.batch_size;
-    let end = (parameters.chunk_index + 1) * parameters.batch_size;
-    let (g1_els_in_chunk, other_els_in_chunk) = parameters.chunk_element_sizes();
-
     // preallocate 2 vectors per batch
     // Ensure that the pairs are created correctly (we do this in chunks!)
     // load `batch_size` chunks on each iteration and perform the transformation
-    debug!("verifying chunk from {} to {}", start, end);
-    let span = info_span!("batch", start, end);
-    let _enter = span.enter();
-    rayon::scope(|t| {
+    iter_chunk(&parameters, |start, end| {
+        debug!("verifying chunk from {} to {}", start, end);
+        let span = info_span!("batch", start, end);
         let _enter = span.enter();
-        t.spawn(|_| {
+        rayon::scope(|t| {
             let _enter = span.enter();
-            let mut g1 = vec![E::G1Affine::zero(); g1_els_in_chunk];
-            check_power_ratios::<E>(
-                (tau_g1, compressed_output),
-                (0, g1_els_in_chunk),
-                &mut g1,
-                &g2_check,
-            )
-            .expect("could not check ratios for Tau G1");
+            t.spawn(|_| {
+                let _enter = span.enter();
+                let mut g1 = vec![E::G1Affine::zero(); parameters.batch_size];
+                check_power_ratios::<E>(
+                    (tau_g1, compressed_output, check_output_for_correctness),
+                    (start, end),
+                    &mut g1,
+                    &g2_check,
+                )
+                .expect("could not check ratios for Tau G1");
+                trace!("tau g1 verification successful");
+            });
 
-            trace!("tau g1 verification successful");
+            if start < parameters.powers_length {
+                // if the `end` would be out of bounds, then just process until
+                // the end (this is necessary in case the last batch would try to
+                // process more elements than available)
+                let end = if start + parameters.batch_size > parameters.powers_length {
+                    parameters.powers_length
+                } else {
+                    end
+                };
+
+                rayon::scope(|t| {
+                    let _enter = span.enter();
+                    t.spawn(|_| {
+                        let _enter = span.enter();
+                        let mut g2 = vec![E::G2Affine::zero(); parameters.batch_size];
+                        check_power_ratios_g2::<E>(
+                            (tau_g2, compressed_output, check_output_for_correctness),
+                            (start, end),
+                            &mut g2,
+                            &g1_check,
+                        )
+                        .expect("could not check ratios for Tau G2");
+                        trace!("tau g2 verification successful");
+                    });
+
+                    t.spawn(|_| {
+                        let _enter = span.enter();
+                        let mut g1 = vec![E::G1Affine::zero(); parameters.batch_size];
+                        check_power_ratios::<E>(
+                            (alpha_g1, compressed_output, check_output_for_correctness),
+                            (start, end),
+                            &mut g1,
+                            &g2_check,
+                        )
+                        .expect("could not check ratios for Alpha G1");
+                        trace!("alpha g1 verification successful");
+                    });
+
+                    t.spawn(|_| {
+                        let _enter = span.enter();
+                        let mut g1 = vec![E::G1Affine::zero(); parameters.batch_size];
+                        check_power_ratios::<E>(
+                            (beta_g1, compressed_output, check_output_for_correctness),
+                            (start, end),
+                            &mut g1,
+                            &g2_check,
+                        )
+                        .expect("could not check ratios for Beta G1");
+                        trace!("beta g1 verification successful");
+                    });
+                });
+            }
         });
 
-        if other_els_in_chunk > 0 {
-            rayon::scope(|t| {
-                let _enter = span.enter();
-                t.spawn(|_| {
-                    let _enter = span.enter();
-                    let mut g2 = vec![E::G2Affine::zero(); other_els_in_chunk];
-                    check_power_ratios_g2::<E>(
-                        (tau_g2, compressed_output),
-                        (0, other_els_in_chunk),
-                        &mut g2,
-                        &g1_check,
-                    )
-                    .expect("could not check ratios for Tau G2");
-                    trace!("tau g2 verification successful");
-                });
+        debug!("chunk verification successful");
 
-                t.spawn(|_| {
-                    let _enter = span.enter();
-                    let mut g1 = vec![E::G1Affine::zero(); other_els_in_chunk];
-                    check_power_ratios::<E>(
-                        (alpha_g1, compressed_output),
-                        (0, other_els_in_chunk),
-                        &mut g1,
-                        &g2_check,
-                    )
-                    .expect("could not check ratios for Alpha G1");
-
-                    trace!("alpha g1 verification successful");
-                });
-
-                t.spawn(|_| {
-                    let _enter = span.enter();
-                    let mut g1 = vec![E::G1Affine::zero(); other_els_in_chunk];
-                    check_power_ratios::<E>(
-                        (beta_g1, compressed_output),
-                        (0, other_els_in_chunk),
-                        &mut g1,
-                        &g2_check,
-                    )
-                    .expect("could not check ratios for Beta G1");
-
-                    trace!("beta g1 verification successful");
-                });
-            });
-        }
-    });
-     */
-    debug!("chunk verification successful");
+        Ok(())
+    })?;
 
     info!("verification complete");
     Ok(())

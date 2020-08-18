@@ -7,6 +7,9 @@ pub use contribute::contribute;
 mod transform;
 pub use transform::transform;
 
+mod transform_full;
+pub use transform_full::transform_full;
+
 use gumdrop::Options;
 use std::default::Default;
 
@@ -66,9 +69,16 @@ pub enum Command {
         help = "contribute randomness via a random beacon (e.g. a bitcoin block header hash)"
     )]
     Beacon(ContributeOpts),
-    // this receives a challenge + response file, verifies it and generates a new challenge
-    #[options(help = "verify the contributions so far and generate a new challenge")]
-    VerifyAndTransform(VerifyAndTransformOpts),
+    // this receives a challenge + response file, verifies it and generates a new challenge, for a single chunk.
+    #[options(
+        help = "verify the contributions so far and generate a new challenge, for a single chunk"
+    )]
+    VerifyAndTransformChunk(VerifyAndTransformOpts),
+    // this receives a challenge + response file, verifies it and generates a new challenge, for a full contribution.
+    #[options(
+        help = "verify the contributions so far and generate a new challenge, for a full contribution"
+    )]
+    VerifyAndTransformFull(VerifyAndTransformOpts),
 }
 
 // Options for the Contribute command

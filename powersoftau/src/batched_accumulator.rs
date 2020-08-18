@@ -75,7 +75,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
 
     /// Verifies a transformation of the `Accumulator` with the `PublicKey`, given a 64-byte transcript `digest`.
     #[allow(clippy::too_many_arguments, clippy::cognitive_complexity)]
-    pub fn verify_transformation(
+    pub fn verify_transformation_chunk(
         input: &[u8],
         output: &[u8],
         key: &PublicKey<E>,
@@ -87,6 +87,29 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         parameters: &'a CeremonyParams<E>,
     ) -> Result<()> {
         raw_accumulator::verify_chunk(
+            (input, input_is_compressed, check_input_for_correctness),
+            (output, output_is_compressed, check_output_for_correctness),
+            key,
+            digest,
+            parameters,
+        )?;
+        Ok(())
+    }
+
+    /// Verifies a transformation of the `Accumulator` with the `PublicKey`, given a 64-byte transcript `digest`.
+    #[allow(clippy::too_many_arguments, clippy::cognitive_complexity)]
+    pub fn verify_transformation_chunk_full(
+        input: &[u8],
+        output: &[u8],
+        key: &PublicKey<E>,
+        digest: &[u8],
+        input_is_compressed: UseCompression,
+        output_is_compressed: UseCompression,
+        check_input_for_correctness: CheckForCorrectness,
+        check_output_for_correctness: CheckForCorrectness,
+        parameters: &'a CeremonyParams<E>,
+    ) -> Result<()> {
+        raw_accumulator::verify_full(
             (input, input_is_compressed, check_input_for_correctness),
             (output, output_is_compressed, check_output_for_correctness),
             key,
@@ -344,7 +367,7 @@ mod tests {
             // ensure that the key is not available to the verifier
             drop(privkey);
 
-            let res = BatchedAccumulator::verify_transformation(
+            let res = BatchedAccumulator::verify_transformation_chunk(
                 &input,
                 &output,
                 &pubkey,
@@ -381,7 +404,7 @@ mod tests {
             // ensure that the key is not available to the verifier
             drop(privkey);
 
-            let res = BatchedAccumulator::verify_transformation(
+            let res = BatchedAccumulator::verify_transformation_chunk(
                 &output,
                 &output_2,
                 &pubkey,
@@ -395,7 +418,7 @@ mod tests {
             assert!(res.is_ok());
 
             // verification will fail if the old hash is used
-            let res = BatchedAccumulator::verify_transformation(
+            let res = BatchedAccumulator::verify_transformation_chunk(
                 &output,
                 &output_2,
                 &pubkey,
