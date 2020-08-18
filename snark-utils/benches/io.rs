@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};
 use zexe_algebra::{AffineCurve, Bls12_377, PairingEngine};
 
-use snark_utils::{BatchDeserializer, BatchSerializer, UseCompression};
+use snark_utils::{BatchDeserializer, BatchSerializer, CheckForCorrectness, UseCompression};
 
 use test_helpers::*;
 
@@ -31,7 +31,22 @@ fn read<C: AffineCurve>(c: &mut Criterion, el_type: &str) {
                 format!("normal_{}", compression),
                 &num_els,
                 |b, _num_els| {
-                    b.iter(|| buf.read_batch::<C>(*compression).unwrap());
+                    b.iter(|| {
+                        buf.read_batch::<C>(*compression, CheckForCorrectness::No)
+                            .unwrap()
+                    });
+                },
+            );
+
+            let (_, buf) = random_vec_buf::<C>(*num_els, *compression);
+            group.bench_with_input(
+                format!("correctness_{}", compression),
+                &num_els,
+                |b, _num_els| {
+                    b.iter(|| {
+                        buf.read_batch::<C>(*compression, CheckForCorrectness::Yes)
+                            .unwrap()
+                    });
                 },
             );
 
@@ -41,8 +56,12 @@ fn read<C: AffineCurve>(c: &mut Criterion, el_type: &str) {
                 &num_els,
                 |b, _num_els| {
                     b.iter(|| {
-                        buf.read_batch_preallocated::<C>(&mut elements, *compression)
-                            .unwrap()
+                        buf.read_batch_preallocated::<C>(
+                            &mut elements,
+                            *compression,
+                            CheckForCorrectness::No,
+                        )
+                        .unwrap()
                     });
                 },
             );

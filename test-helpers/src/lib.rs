@@ -8,8 +8,8 @@ pub use fixtures::TestCircuit;
 use rand::{thread_rng, Rng};
 use zexe_algebra::{AffineCurve, ProjectiveCurve, UniformRand};
 
-pub use snark_utils::UseCompression;
-use snark_utils::{buffer_size, BatchSerializer}; // re-export for testing reasons
+use snark_utils::{buffer_size, BatchSerializer};
+pub use snark_utils::{CheckForCorrectness, UseCompression}; // re-export for testing reasons
 
 /// returns a random affine curve point from the provided rng
 pub fn random_point<C: AffineCurve>(rng: &mut impl Rng) -> C {

@@ -1,6 +1,6 @@
 use phase2::parameters::MPCParameters;
 use powersoftau::{parameters::CeremonyParams, BatchedAccumulator};
-use snark_utils::{Groth16Params, UseCompression};
+use snark_utils::{CheckForCorrectness, Groth16Params, UseCompression};
 use test_helpers::{setup_verify, TestCircuit};
 
 use rand::{thread_rng, Rng};
@@ -19,7 +19,9 @@ where
     let compressed = UseCompression::Yes;
     // make 1 power of tau contribution (assume powers of tau gets calculated properly)
     let (_, output, _, _) = setup_verify(compressed, compressed, &params);
-    let accumulator = BatchedAccumulator::deserialize(&output, compressed, &params).unwrap();
+    let accumulator =
+        BatchedAccumulator::deserialize(&output, compressed, CheckForCorrectness::No, &params)
+            .unwrap();
 
     // prepare only the first 32 powers (for whatever reason)
     let groth_params = Groth16Params::<E>::new(
@@ -43,9 +45,15 @@ where
         counter.num_aux + counter.num_inputs + 1,
     );
 
-    let mut mpc =
-        MPCParameters::<E>::new_from_buffer(c, writer.as_mut(), compressed, 32, phase2_size)
-            .unwrap();
+    let mut mpc = MPCParameters::<E>::new_from_buffer(
+        c,
+        writer.as_mut(),
+        compressed,
+        CheckForCorrectness::No,
+        32,
+        phase2_size,
+    )
+    .unwrap();
 
     let before = mpc.clone();
     // it is _not_ safe to use it yet, there must be 1 contribution

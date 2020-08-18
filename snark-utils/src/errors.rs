@@ -28,6 +28,8 @@ pub enum Error {
     Phase2Error(#[from] Phase2Error),
     #[error("Crossbeam error during while joining the thread")]
     CrossBeamError,
+    #[error("Got point not in the prime order subgroup")]
+    IncorrectSubgroup,
 }
 
 impl From<Box<dyn std::any::Any + Send>> for Error {

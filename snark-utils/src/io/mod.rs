@@ -19,6 +19,7 @@ pub fn buffer_size<C: AffineCurve>(compression: UseCompression) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::CheckForCorrectness;
     use rand::thread_rng;
     use test_helpers::random_point_vec;
     use zexe_algebra::bls12_377::{G1Affine, G2Affine};
@@ -61,7 +62,9 @@ mod tests {
         let mut buf = vec![];
         // assert that the deserialized version is the same as the serialized
         buf.write_element(&el, compression).unwrap();
-        let deserialized: E = buf.read_element(compression).unwrap();
+        let deserialized: E = buf
+            .read_element(compression, CheckForCorrectness::No)
+            .unwrap();
         assert_eq!(el, deserialized);
     }
 
@@ -72,7 +75,7 @@ mod tests {
         let mut buf = vec![];
         // assert that the deserialized version is the same as the serialized
         buf.write_element(&el, compression).unwrap();
-        buf.read_element_preallocated(&mut prealloc, compression)
+        buf.read_element_preallocated(&mut prealloc, compression, CheckForCorrectness::No)
             .unwrap();
         assert_eq!(el, prealloc);
     }
@@ -86,8 +89,12 @@ mod tests {
         let len = len * num_els;
         let mut buf = vec![0; len];
         buf.write_batch(&elements, compression).unwrap();
-        let deserialized1: Vec<E> = buf.read_batch(compression).unwrap();
-        let deserialized2: Vec<E> = buf.read_batch(compression).unwrap();
+        let deserialized1: Vec<E> = buf
+            .read_batch(compression, CheckForCorrectness::No)
+            .unwrap();
+        let deserialized2: Vec<E> = buf
+            .read_batch(compression, CheckForCorrectness::No)
+            .unwrap();
         assert_eq!(elements, deserialized1);
         assert_eq!(elements, deserialized2);
     }
@@ -104,9 +111,9 @@ mod tests {
         buf.write_batch(&elements, compression).unwrap();
         let mut prealloc: Vec<E> = random_point_vec(num_els, &mut rng);
         let mut prealloc2: Vec<E> = random_point_vec(num_els, &mut rng);
-        buf.read_batch_preallocated(&mut prealloc, compression)
+        buf.read_batch_preallocated(&mut prealloc, compression, CheckForCorrectness::No)
             .unwrap();
-        buf.read_batch_preallocated(&mut prealloc2, compression)
+        buf.read_batch_preallocated(&mut prealloc2, compression, CheckForCorrectness::No)
             .unwrap();
         assert_eq!(elements, prealloc);
         assert_eq!(elements, prealloc2);

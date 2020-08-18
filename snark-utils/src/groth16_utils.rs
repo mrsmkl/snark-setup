@@ -281,9 +281,9 @@ fn split_transcript<E: PairingEngine>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::UseCompression as UseCompressionV1;
+    use crate::{CheckForCorrectness as CheckForCorrectnessV1, UseCompression as UseCompressionV1};
     use powersoftau::{parameters::CeremonyParams, BatchedAccumulator};
-    use test_helpers::{setup_verify, UseCompression};
+    use test_helpers::{setup_verify, CheckForCorrectness, UseCompression};
     use zexe_algebra::Bls12_377;
 
     #[test]
@@ -322,7 +322,9 @@ mod tests {
         let batch = ((1 << powers) << 1) - 1;
         let params = CeremonyParams::<E>::new_for_first_chunk(powers, batch);
         let (_, output, _, _) = setup_verify(compressed, compressed, &params);
-        let accumulator = BatchedAccumulator::deserialize(&output, compressed, &params).unwrap();
+        let accumulator =
+            BatchedAccumulator::deserialize(&output, compressed, CheckForCorrectness::No, &params)
+                .unwrap();
 
         let groth_params = Groth16Params::<E>::new(
             prepared_phase1_size,
@@ -340,6 +342,7 @@ mod tests {
         let deserialized = Groth16Params::<E>::read(
             &mut reader.get_mut(),
             compat(compressed),
+            compat_correctness(CheckForCorrectness::No),
             prepared_phase1_size,
             prepared_phase1_size, // phase2_size == prepared phase1 size
         )
@@ -351,6 +354,7 @@ mod tests {
         let deserialized_subset = Groth16Params::<E>::read(
             &mut reader.get_mut(),
             compat(compressed),
+            compat_correctness(CheckForCorrectness::No),
             prepared_phase1_size,
             subset, // phase2 size is smaller than the prepared phase1 size
         )
@@ -377,11 +381,18 @@ mod tests {
         ); // h_query is 1 less element
     }
 
-    // helper
+    // helpers
     fn compat(compression: UseCompression) -> UseCompressionV1 {
         match compression {
             UseCompression::Yes => UseCompressionV1::Yes,
             UseCompression::No => UseCompressionV1::No,
+        }
+    }
+
+    fn compat_correctness(check_for_correctness: CheckForCorrectness) -> CheckForCorrectnessV1 {
+        match check_for_correctness {
+            CheckForCorrectness::Yes => CheckForCorrectnessV1::Yes,
+            CheckForCorrectness::No => CheckForCorrectnessV1::No,
         }
     }
 }

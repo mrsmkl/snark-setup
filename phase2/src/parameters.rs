@@ -554,7 +554,8 @@ mod tests {
         let accumulator = {
             let compressed = UseCompression::No;
             let (_, output, _, _) = setup_verify(compressed, compressed, &params);
-            BatchedAccumulator::deserialize(&output, compressed, &params).unwrap()
+            BatchedAccumulator::deserialize(&output, compressed, CheckForCorrectness::No, &params)
+                .unwrap()
         };
 
         let groth_params = Groth16Params::<E>::new(
