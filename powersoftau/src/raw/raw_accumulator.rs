@@ -651,6 +651,90 @@ pub fn verify_full<E: PairingEngine>(
     Ok(())
 }
 
+/// Verifies that the accumulator was transformed correctly
+/// given the `PublicKey` and the so-far hash of the accumulator.
+/// This verifies a single chunk and checks only that the points
+/// are not zero and that they're in the prime order subgroup.
+pub fn combine<E: PairingEngine>(
+   inputs: &[(
+        &[u8],
+        UseCompression,
+    )],
+    (output, compressed_output): (
+        &mut [u8],
+        UseCompression,
+    ),
+    parameters: &CeremonyParams<E>,
+) -> Result<()> {
+    let span = info_span!("phase1-contribute");
+    let _enter = span.enter();
+
+    info!("starting...");
+
+    for (chunk_index, (input, compressed_input)) in inputs.iter().enumerate() {
+        let input = *input;
+        let compressed_input = *compressed_input;
+
+        let (in_tau_g1, in_tau_g2, in_alpha_g1, in_beta_g1, in_beta_g2) =
+            split(input, parameters, compressed_input);
+
+        let (tau_g1, tau_g2, alpha_g1, beta_g1, beta_g2) = split_at_chunk_mut(output, parameters, compressed_output, chunk_index);
+
+        let start = chunk_index * parameters.batch_size;
+        let end = (chunk_index + 1) * parameters.batch_size;
+        debug!("combining chunk from {} to {}", start, end);
+        let span = info_span!("batch", start, end);
+        let _enter = span.enter();
+        rayon::scope(|t| {
+            let _enter = span.enter();
+            t.spawn(|_| {
+                let _enter = span.enter();
+                let elements: Vec<E::G1Affine> = in_tau_g1.read_batch(compressed_input, CheckForCorrectness::No)
+                    .expect("should have read batch");
+                tau_g1.write_batch(&elements, compressed_output).expect("should have written batch");
+                trace!("tau g1 combining for chunk {} successful", chunk_index);
+            });
+
+            if start < parameters.powers_length {
+                rayon::scope(|t| {
+                    let _enter = span.enter();
+                    t.spawn(|_| {
+                        let _enter = span.enter();
+                        let elements: Vec<E::G2Affine> = in_tau_g2.read_batch(compressed_input, CheckForCorrectness::No).expect("should have read batch");
+                        tau_g2.write_batch(&elements, compressed_output).expect("should have written batch");
+                        trace!("tau g2 combining for chunk {} successful", chunk_index);
+                    });
+
+                    t.spawn(|_| {
+                        let _enter = span.enter();
+                        let elements: Vec<E::G1Affine> = in_alpha_g1.read_batch(compressed_input, CheckForCorrectness::No).expect("should have read batch");
+                        alpha_g1.write_batch(&elements, compressed_output).expect("should have written batch");
+                        trace!("alpha g1 combining for chunk {} successful", chunk_index);
+                    });
+
+                    t.spawn(|_| {
+                        let _enter = span.enter();
+                        let elements: Vec<E::G1Affine> = in_beta_g1.read_batch(compressed_input, CheckForCorrectness::No).expect("should have read batch");
+                        beta_g1.write_batch(&elements, compressed_output).expect("should have written batch");
+                        trace!("beta g1 combining for chunk {} successful", chunk_index);
+                    });
+                });
+            }
+
+            if chunk_index == 0 {
+                let element: E::G2Affine = (&*in_beta_g2).read_element(compressed_input, CheckForCorrectness::No).expect("should have read element");
+                beta_g2.write_element(&element, compressed_output).expect("should have written element");
+                trace!("beta g2 combining for chunk {} successful", chunk_index);
+            }
+        });
+
+        debug!("chunk {} processing successful", chunk_index);
+    };
+
+    info!("combining complete");
+    Ok(())
+}
+
 /// Serializes all the provided elements to the output buffer
 #[allow(unused)]
 pub fn serialize<E: PairingEngine>(
@@ -984,6 +1068,34 @@ fn split_mut<'a, E: PairingEngine>(
     // we take up to g2_size for beta_g2, since there might be other
     // elements after it at the end of the buffer
     (tau_g1, tau_g2, alpha_g1, beta_g1, &mut beta_g2[0..g2_size])
+}
+
+/// Splits the full buffer in 5 non overlapping mutable slice for a given chunk and batch size.
+/// Each slice corresponds to the group elements in the following order
+/// [TauG1, TauG2, AlphaG1, BetaG1, BetaG2]
+fn split_at_chunk_mut<'a, E: PairingEngine>(
+    buf: &'a mut [u8],
+    parameters: &'a CeremonyParams<E>,
+    compressed: UseCompression,
+    chunk_index: usize,
+) -> SplitBufMut<'a> {
+    let (g1_els_in_chunk, other_els_in_chunk) = parameters.chunk_element_sizes();
+    let g1_size = buffer_size::<E::G1Affine>(compressed);
+    let g2_size = buffer_size::<E::G2Affine>(compressed);
+
+    let buf_to_chunk = |buf: &'a mut [u8], element_size: usize| -> &'a mut [u8] {
+        &mut buf[chunk_index*parameters.batch_size*element_size..(chunk_index+1)*parameters.batch_size*element_size]
+    };
+
+    // leave the first 64 bytes for the hash
+    let (_, others) = buf.split_at_mut(parameters.hash_size);
+    let (tau_g1, others) = others.split_at_mut(g1_size * g1_els_in_chunk);
+    let (tau_g2, others) = others.split_at_mut(g2_size * other_els_in_chunk);
+    let (alpha_g1, others) = others.split_at_mut(g1_size * other_els_in_chunk);
+    let (beta_g1, beta_g2) = others.split_at_mut(g1_size * other_els_in_chunk);
+    // we take up to g2_size for beta_g2, since there might be other
+    // elements after it at the end of the buffer
+    (buf_to_chunk(tau_g1, g1_size), buf_to_chunk(tau_g2, g2_size), buf_to_chunk(alpha_g1, g1_size), buf_to_chunk(beta_g1, g1_size), &mut beta_g2[0..g2_size])
 }
 
 /// Splits the full buffer in 5 non overlapping immutable slice.

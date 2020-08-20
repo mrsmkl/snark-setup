@@ -127,7 +127,7 @@ pub fn transform_full<T: Engine + Sync>(
         "Verifying a contribution to contain proper powers and correspond to the public key..."
     );
 
-    let res = BatchedAccumulator::verify_transformation_chunk_full(
+    let res = BatchedAccumulator::verify_transformation_full(
         &challenge_readable_map,
         &response_readable_map,
         &public_key,

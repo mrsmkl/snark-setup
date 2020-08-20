@@ -98,7 +98,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
 
     /// Verifies a transformation of the `Accumulator` with the `PublicKey`, given a 64-byte transcript `digest`.
     #[allow(clippy::too_many_arguments, clippy::cognitive_complexity)]
-    pub fn verify_transformation_chunk_full(
+    pub fn verify_transformation_full(
         input: &[u8],
         output: &[u8],
         key: &PublicKey<E>,
