@@ -13,7 +13,7 @@ mod groth16_utils;
 pub use groth16_utils::Groth16Params;
 
 mod elements;
-pub use elements::{ElementType, UseCompression, CheckForCorrectness};
+pub use elements::{CheckForCorrectness, ElementType, UseCompression};
 
 mod helpers;
 pub use helpers::*;
