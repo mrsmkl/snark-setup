@@ -54,12 +54,26 @@ fn iter_chunk(
     mut action: impl FnMut(usize, usize) -> Result<()>,
 ) -> Result<()> {
     (0..parameters.powers_g1_length)
-        .chunks(parameters.batch_size)
+        .chunks(parameters.batch_size - 1)
         .into_iter()
         .map(|chunk| {
             let (start, end) = match chunk.minmax() {
-                MinMaxResult::MinMax(start, end) => (start, end + 1),
-                MinMaxResult::OneElement(start) => (start, start + 1),
+                MinMaxResult::MinMax(start, end) => (
+                    start,
+                    if end >= parameters.powers_g1_length - 1 {
+                        end + 1
+                    } else {
+                        end + 2
+                    },
+                ), // ensure there's overlap between chunks
+                MinMaxResult::OneElement(start) => (
+                    start,
+                    if start >= parameters.powers_g1_length - 1 {
+                        start + 1
+                    } else {
+                        start + 2
+                    },
+                ),
                 _ => return Err(Error::InvalidChunk),
             };
             action(start, end)
@@ -246,7 +260,6 @@ pub fn verify_chunk<E: PairingEngine>(
 
     info!("starting...");
     // Split the buffers
-    // todo: check that in_tau_g2 is actually not required
     let (in_tau_g1, in_tau_g2, in_alpha_g1, in_beta_g1, in_beta_g2) =
         split(input, parameters, compressed_input);
     let (tau_g1, tau_g2, alpha_g1, beta_g1, beta_g2) = split(output, parameters, compressed_output);
@@ -444,58 +457,25 @@ pub fn verify_chunk<E: PairingEngine>(
 /// This verifies a single chunk and checks only that the points
 /// are not zero and that they're in the prime order subgroup.
 pub fn verify_full<E: PairingEngine>(
-    (input, compressed_input, check_input_for_correctness): (
-        &[u8],
-        UseCompression,
-        CheckForCorrectness,
-    ),
     (output, compressed_output, check_output_for_correctness): (
         &[u8],
         UseCompression,
         CheckForCorrectness,
     ),
-    key: &PublicKey<E>,
-    digest: &[u8],
     parameters: &CeremonyParams<E>,
 ) -> Result<()> {
-    let span = info_span!("phase1-verify");
+    let span = info_span!("phase1-verify-full");
     let _enter = span.enter();
 
     info!("starting...");
 
-    // Ensure the key ratios are correctly produced
-    let [tau_g2_s, alpha_g2_s, beta_g2_s] = compute_g2_s_key(&key, &digest)?;
-    // put in tuple form for convenience
-    let tau_g1_check = &(key.tau_g1.0, key.tau_g1.1);
-    let tau_g2_check = &(tau_g2_s, key.tau_g2);
-    let alpha_g2_check = &(alpha_g2_s, key.alpha_g2);
-    let beta_g2_check = &(beta_g2_s, key.beta_g2);
-    // Check the proofs-of-knowledge for tau/alpha/beta
-    let check_ratios = &[
-        (key.tau_g1, tau_g2_check, "Tau G1<>G2"),
-        (key.alpha_g1, alpha_g2_check, "Alpha G1<>G2"),
-        (key.beta_g1, beta_g2_check, "Beta G1<>G2"),
-    ];
-    for (a, b, err) in check_ratios {
-        check_same_ratio::<E>(a, b, err)?;
-    }
-    debug!("key ratios were correctly produced");
-
-    // Split the buffers
-    let (in_tau_g1, in_tau_g2, in_alpha_g1, in_beta_g1, in_beta_g2) =
-        split(input, parameters, compressed_input);
-    let (tau_g1, tau_g2, alpha_g1, beta_g1, beta_g2) = split(output, parameters, compressed_output);
+    let (tau_g1, tau_g2, alpha_g1, beta_g1, _) = split_full(output, parameters, compressed_output);
 
     // Ensure that the initial conditions are correctly formed (first 2 elements)
     // We allocate a G1 vector of length 2 and re-use it for our G1 elements.
     // We keep the values of the Tau G1/G2 telements for later use.
     let (g1_check, g2_check) = {
-        let mut before_g1 = read_initial_elements::<E::G1Affine>(
-            in_tau_g1,
-            compressed_input,
-            check_input_for_correctness,
-        )?;
-        let mut after_g1 = read_initial_elements::<E::G1Affine>(
+        let after_g1 = read_initial_elements::<E::G1Affine>(
             tau_g1,
             compressed_output,
             check_output_for_correctness,
@@ -503,11 +483,6 @@ pub fn verify_full<E: PairingEngine>(
         if after_g1[0] != E::G1Affine::prime_subgroup_generator() {
             return Err(VerificationError::InvalidGenerator(ElementType::TauG1).into());
         }
-        let before_g2 = read_initial_elements::<E::G2Affine>(
-            in_tau_g2,
-            compressed_input,
-            check_input_for_correctness,
-        )?;
         let after_g2 = read_initial_elements::<E::G2Affine>(
             tau_g2,
             compressed_output,
@@ -518,48 +493,6 @@ pub fn verify_full<E: PairingEngine>(
         }
         let g1_check = (after_g1[0], after_g1[1]);
         let g2_check = (after_g2[0], after_g2[1]);
-
-        // Check TauG1 -> TauG2
-        check_same_ratio::<E>(
-            &(before_g1[1], after_g1[1]),
-            tau_g2_check,
-            "Before-After: Tau [1] G1<>G2",
-        )?;
-        check_same_ratio::<E>(
-            tau_g1_check,
-            &(before_g2[1], after_g2[1]),
-            "Before-After: Tau [1] G1<>G2",
-        )?;
-        for (before, after, check) in &[
-            (in_alpha_g1, alpha_g1, alpha_g2_check),
-            (in_beta_g1, beta_g1, beta_g2_check),
-        ] {
-            before.read_batch_preallocated(
-                &mut before_g1,
-                compressed_input,
-                check_input_for_correctness,
-            )?;
-            after.read_batch_preallocated(
-                &mut after_g1,
-                compressed_output,
-                check_output_for_correctness,
-            )?;
-            check_same_ratio::<E>(
-                &(before_g1[0], after_g1[0]),
-                check,
-                "Before-After: Alpha[0] G1<>G2",
-            )?;
-        }
-
-        let before_beta_g2 = (&*in_beta_g2)
-            .read_element::<E::G2Affine>(compressed_input, check_input_for_correctness)?;
-        let after_beta_g2 = (&*beta_g2)
-            .read_element::<E::G2Affine>(compressed_output, check_output_for_correctness)?;
-        check_same_ratio::<E>(
-            &(before_g1[0], after_g1[0]),
-            &(before_beta_g2, after_beta_g2),
-            "Before-After: Other[0] G1<>G2",
-        )?;
 
         (g1_check, g2_check)
     };
@@ -656,14 +589,8 @@ pub fn verify_full<E: PairingEngine>(
 /// This verifies a single chunk and checks only that the points
 /// are not zero and that they're in the prime order subgroup.
 pub fn combine<E: PairingEngine>(
-   inputs: &[(
-        &[u8],
-        UseCompression,
-    )],
-    (output, compressed_output): (
-        &mut [u8],
-        UseCompression,
-    ),
+    inputs: &[(&[u8], UseCompression)],
+    (output, compressed_output): (&mut [u8], UseCompression),
     parameters: &CeremonyParams<E>,
 ) -> Result<()> {
     let span = info_span!("phase1-contribute");
@@ -672,16 +599,18 @@ pub fn combine<E: PairingEngine>(
     info!("starting...");
 
     for (chunk_index, (input, compressed_input)) in inputs.iter().enumerate() {
+        let chunk_parameters = parameters.specialize_to_chunk(chunk_index);
         let input = *input;
         let compressed_input = *compressed_input;
 
         let (in_tau_g1, in_tau_g2, in_alpha_g1, in_beta_g1, in_beta_g2) =
-            split(input, parameters, compressed_input);
+            split(input, &chunk_parameters, compressed_input);
 
-        let (tau_g1, tau_g2, alpha_g1, beta_g1, beta_g2) = split_at_chunk_mut(output, parameters, compressed_output, chunk_index);
+        let (tau_g1, tau_g2, alpha_g1, beta_g1, beta_g2) =
+            split_at_chunk_mut(output, &chunk_parameters, compressed_output);
 
-        let start = chunk_index * parameters.batch_size;
-        let end = (chunk_index + 1) * parameters.batch_size;
+        let start = chunk_index * chunk_parameters.batch_size;
+        let end = (chunk_index + 1) * chunk_parameters.batch_size;
         debug!("combining chunk from {} to {}", start, end);
         let span = info_span!("batch", start, end);
         let _enter = span.enter();
@@ -689,47 +618,66 @@ pub fn combine<E: PairingEngine>(
             let _enter = span.enter();
             t.spawn(|_| {
                 let _enter = span.enter();
-                let elements: Vec<E::G1Affine> = in_tau_g1.read_batch(compressed_input, CheckForCorrectness::No)
+                let elements: Vec<E::G1Affine> = in_tau_g1
+                    .read_batch(compressed_input, CheckForCorrectness::No)
                     .expect("should have read batch");
-                tau_g1.write_batch(&elements, compressed_output).expect("should have written batch");
+                tau_g1
+                    .write_batch(&elements, compressed_output)
+                    .expect("should have written batch");
                 trace!("tau g1 combining for chunk {} successful", chunk_index);
             });
 
-            if start < parameters.powers_length {
+            if start < chunk_parameters.powers_length {
                 rayon::scope(|t| {
                     let _enter = span.enter();
                     t.spawn(|_| {
                         let _enter = span.enter();
-                        let elements: Vec<E::G2Affine> = in_tau_g2.read_batch(compressed_input, CheckForCorrectness::No).expect("should have read batch");
-                        tau_g2.write_batch(&elements, compressed_output).expect("should have written batch");
+                        let elements: Vec<E::G2Affine> = in_tau_g2
+                            .read_batch(compressed_input, CheckForCorrectness::No)
+                            .expect("should have read batch");
+                        tau_g2
+                            .write_batch(&elements, compressed_output)
+                            .expect("should have written batch");
                         trace!("tau g2 combining for chunk {} successful", chunk_index);
                     });
 
                     t.spawn(|_| {
                         let _enter = span.enter();
-                        let elements: Vec<E::G1Affine> = in_alpha_g1.read_batch(compressed_input, CheckForCorrectness::No).expect("should have read batch");
-                        alpha_g1.write_batch(&elements, compressed_output).expect("should have written batch");
+                        let elements: Vec<E::G1Affine> = in_alpha_g1
+                            .read_batch(compressed_input, CheckForCorrectness::No)
+                            .expect("should have read batch");
+                        alpha_g1
+                            .write_batch(&elements, compressed_output)
+                            .expect("should have written batch");
                         trace!("alpha g1 combining for chunk {} successful", chunk_index);
                     });
 
                     t.spawn(|_| {
                         let _enter = span.enter();
-                        let elements: Vec<E::G1Affine> = in_beta_g1.read_batch(compressed_input, CheckForCorrectness::No).expect("should have read batch");
-                        beta_g1.write_batch(&elements, compressed_output).expect("should have written batch");
+                        let elements: Vec<E::G1Affine> = in_beta_g1
+                            .read_batch(compressed_input, CheckForCorrectness::No)
+                            .expect("should have read batch");
+                        beta_g1
+                            .write_batch(&elements, compressed_output)
+                            .expect("should have written batch");
                         trace!("beta g1 combining for chunk {} successful", chunk_index);
                     });
                 });
             }
 
             if chunk_index == 0 {
-                let element: E::G2Affine = (&*in_beta_g2).read_element(compressed_input, CheckForCorrectness::No).expect("should have read element");
-                beta_g2.write_element(&element, compressed_output).expect("should have written element");
+                let element: E::G2Affine = (&*in_beta_g2)
+                    .read_element(compressed_input, CheckForCorrectness::No)
+                    .expect("should have read element");
+                beta_g2
+                    .write_element(&element, compressed_output)
+                    .expect("should have written element");
                 trace!("beta g2 combining for chunk {} successful", chunk_index);
             }
         });
 
         debug!("chunk {} processing successful", chunk_index);
-    };
+    }
 
     info!("combining complete");
     Ok(())
@@ -1077,25 +1025,40 @@ fn split_at_chunk_mut<'a, E: PairingEngine>(
     buf: &'a mut [u8],
     parameters: &'a CeremonyParams<E>,
     compressed: UseCompression,
-    chunk_index: usize,
 ) -> SplitBufMut<'a> {
     let (g1_els_in_chunk, other_els_in_chunk) = parameters.chunk_element_sizes();
     let g1_size = buffer_size::<E::G1Affine>(compressed);
     let g2_size = buffer_size::<E::G2Affine>(compressed);
 
-    let buf_to_chunk = |buf: &'a mut [u8], element_size: usize| -> &'a mut [u8] {
-        &mut buf[chunk_index*parameters.batch_size*element_size..(chunk_index+1)*parameters.batch_size*element_size]
+    let buf_to_chunk = |buf: &'a mut [u8], element_size: usize, is_other: bool| -> &'a mut [u8] {
+        if is_other && other_els_in_chunk == 0 {
+            return &mut [];
+        }
+        let els_in_chunk = if is_other {
+            other_els_in_chunk
+        } else {
+            g1_els_in_chunk
+        };
+        let start = parameters.chunk_index * parameters.batch_size * element_size;
+        let end = start + els_in_chunk * element_size;
+        &mut buf[start..end]
     };
 
     // leave the first 64 bytes for the hash
     let (_, others) = buf.split_at_mut(parameters.hash_size);
-    let (tau_g1, others) = others.split_at_mut(g1_size * g1_els_in_chunk);
-    let (tau_g2, others) = others.split_at_mut(g2_size * other_els_in_chunk);
-    let (alpha_g1, others) = others.split_at_mut(g1_size * other_els_in_chunk);
-    let (beta_g1, beta_g2) = others.split_at_mut(g1_size * other_els_in_chunk);
+    let (tau_g1, others) = others.split_at_mut(g1_size * parameters.powers_g1_length);
+    let (tau_g2, others) = others.split_at_mut(g2_size * parameters.powers_length);
+    let (alpha_g1, others) = others.split_at_mut(g1_size * parameters.powers_length);
+    let (beta_g1, beta_g2) = others.split_at_mut(g1_size * parameters.powers_length);
     // we take up to g2_size for beta_g2, since there might be other
     // elements after it at the end of the buffer
-    (buf_to_chunk(tau_g1, g1_size), buf_to_chunk(tau_g2, g2_size), buf_to_chunk(alpha_g1, g1_size), buf_to_chunk(beta_g1, g1_size), &mut beta_g2[0..g2_size])
+    (
+        buf_to_chunk(tau_g1, g1_size, false),
+        buf_to_chunk(tau_g2, g2_size, true),
+        buf_to_chunk(alpha_g1, g1_size, true),
+        buf_to_chunk(beta_g1, g1_size, true),
+        &mut beta_g2[0..g2_size],
+    )
 }
 
 /// Splits the full buffer in 5 non overlapping immutable slice.
@@ -1115,6 +1078,27 @@ fn split<'a, E: PairingEngine>(
     let (tau_g2, others) = others.split_at(g2_size * other_els_in_chunk);
     let (alpha_g1, others) = others.split_at(g1_size * other_els_in_chunk);
     let (beta_g1, beta_g2) = others.split_at(g1_size * other_els_in_chunk);
+    // we take up to g2_size for beta_g2, since there might be other
+    // elements after it at the end of the buffer
+    (tau_g1, tau_g2, alpha_g1, beta_g1, &beta_g2[0..g2_size])
+}
+
+/// Splits the full buffer in 5 non overlapping immutable slice.
+/// Each slice corresponds to the group elements in the following order
+/// [TauG1, TauG2, AlphaG1, BetaG1, BetaG2]
+fn split_full<'a, E: PairingEngine>(
+    buf: &'a [u8],
+    parameters: &CeremonyParams<E>,
+    compressed: UseCompression,
+) -> SplitBuf<'a> {
+    let g1_size = buffer_size::<E::G1Affine>(compressed);
+    let g2_size = buffer_size::<E::G2Affine>(compressed);
+
+    let (_, others) = buf.split_at(parameters.hash_size);
+    let (tau_g1, others) = others.split_at(g1_size * parameters.powers_g1_length);
+    let (tau_g2, others) = others.split_at(g2_size * parameters.powers_length);
+    let (alpha_g1, others) = others.split_at(g1_size * parameters.powers_length);
+    let (beta_g1, beta_g2) = others.split_at(g1_size * parameters.powers_length);
     // we take up to g2_size for beta_g2, since there might be other
     // elements after it at the end of the buffer
     (tau_g1, tau_g2, alpha_g1, beta_g1, &beta_g2[0..g2_size])

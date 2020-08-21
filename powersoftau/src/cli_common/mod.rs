@@ -10,6 +10,9 @@ pub use transform::transform;
 mod transform_full;
 pub use transform_full::transform_full;
 
+mod combine;
+pub use combine::combine;
+
 use gumdrop::Options;
 use std::default::Default;
 
@@ -78,7 +81,12 @@ pub enum Command {
     #[options(
         help = "verify the contributions so far and generate a new challenge, for a full contribution"
     )]
-    VerifyAndTransformFull(VerifyAndTransformOpts),
+    VerifyAndTransformFull(VerifyFullOpts),
+    // this receives a list of chunked reponses and combines them into a single response.
+    #[options(
+        help = "receive a list of chunked reponses and combines them into a single response"
+    )]
+    Combine(CombineOpts),
 }
 
 // Options for the Contribute command
@@ -114,6 +122,28 @@ pub struct VerifyAndTransformOpts {
         default = "new_challenge"
     )]
     pub new_challenge_fname: String,
+}
+
+#[derive(Debug, Options, Clone)]
+pub struct VerifyFullOpts {
+    help: bool,
+    #[options(
+        help = "the provided response file which will be verified",
+        default = "response"
+    )]
+    pub response_fname: String,
+}
+
+#[derive(Debug, Options, Clone)]
+pub struct CombineOpts {
+    help: bool,
+    #[options(
+        help = "the response files which will be combined",
+        default = "response_list"
+    )]
+    pub response_list_fname: String,
+    #[options(help = "the combined response file", default = "combined")]
+    pub combined_fname: String,
 }
 
 pub fn curve_from_str(src: &str) -> Result<CurveKind, String> {

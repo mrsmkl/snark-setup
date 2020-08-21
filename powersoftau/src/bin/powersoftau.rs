@@ -1,6 +1,7 @@
 use gumdrop::Options;
 use powersoftau::cli_common::{
-    contribute, new_challenge, transform, transform_full, Command, CurveKind, PowersOfTauOpts,
+    combine, contribute, new_challenge, transform, transform_full, Command, CurveKind,
+    PowersOfTauOpts,
 };
 use powersoftau::parameters::CeremonyParams;
 use snark_utils::{beacon_randomness, derive_rng_from_seed};
@@ -33,7 +34,7 @@ fn main() {
 }
 
 fn execute_cmd<E: Engine>(opts: PowersOfTauOpts) {
-    let parameters = CeremonyParams::<E>::new(opts.power, opts.batch_size, opts.chunk_index);
+    let parameters = CeremonyParams::<E>::new(opts.chunk_index, opts.power, opts.batch_size);
 
     let command = opts.clone().command.unwrap_or_else(|| {
         eprintln!("No command was provided.");
@@ -71,12 +72,10 @@ fn execute_cmd<E: Engine>(opts: PowersOfTauOpts) {
         }
         Command::VerifyAndTransformFull(opt) => {
             // we receive a previous participation, verify it, and generate a new challenge from it
-            transform_full(
-                &opt.challenge_fname,
-                &opt.response_fname,
-                &opt.new_challenge_fname,
-                &parameters,
-            );
+            transform_full(&opt.response_fname, &parameters);
+        }
+        Command::Combine(opt) => {
+            combine(&opt.response_list_fname, &opt.combined_fname, &parameters);
         }
     };
 

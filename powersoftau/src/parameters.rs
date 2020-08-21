@@ -62,6 +62,8 @@ impl<E> CurveParams<E> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// The parameters used for the trusted setup ceremony
 pub struct CeremonyParams<E> {
+    /// The chunk index
+    pub chunk_index: usize,
     /// The type of the curve being used
     pub curve: CurveParams<E>,
     /// The number of Powers of Tau G1 elements which will be accumulated
@@ -70,8 +72,6 @@ pub struct CeremonyParams<E> {
     pub powers_length: usize,
     /// The circuit size exponent (ie length will be 2^size), depends on the computation you want to support
     pub size: usize,
-    // The index of the chunk to process.
-    pub chunk_index: usize,
     /// The size of each chunk.
     pub batch_size: usize,
     // Size of the used public key
@@ -90,22 +90,22 @@ impl<E: PairingEngine> CeremonyParams<E> {
     pub fn new_for_first_chunk(size: usize, batch_size: usize) -> Self {
         // create the curve
         let curve = CurveParams::<E>::new();
-        Self::new_with_curve(curve, size, batch_size, 0)
+        Self::new_with_curve(0, curve, size, batch_size)
     }
 
-    pub fn new(size: usize, batch_size: usize, chunk_index: usize) -> Self {
+    pub fn new(chunk_index: usize, size: usize, batch_size: usize) -> Self {
         // create the curve
         let curve = CurveParams::<E>::new();
-        Self::new_with_curve(curve, size, batch_size, chunk_index)
+        Self::new_with_curve(chunk_index, curve, size, batch_size)
     }
 
     /// Constructs a new ceremony parameters object from the directly provided curve with parameters
     /// Consider using the `new` method if you want to use one of the pre-implemented curves
     pub fn new_with_curve(
+        chunk_index: usize,
         curve: CurveParams<E>,
         size: usize,
         batch_size: usize,
-        chunk_index: usize,
     ) -> Self {
         // assume we're using a 64 byte long hash function such as Blake
         let hash_size = 64;
@@ -155,9 +155,9 @@ impl<E: PairingEngine> CeremonyParams<E> {
             public_key_size;
 
         Self {
+            chunk_index,
             curve,
             size,
-            chunk_index,
             batch_size,
             accumulator_size,
             public_key_size,
@@ -183,6 +183,12 @@ impl<E: PairingEngine> CeremonyParams<E> {
             self.powers_g1_length,
             self.powers_length,
         )
+    }
+
+    pub fn specialize_to_chunk(&self, chunk_index: usize) -> Self {
+        let mut params = self.clone();
+        params.chunk_index = chunk_index;
+        params
     }
 }
 

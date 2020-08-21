@@ -99,21 +99,34 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
     /// Verifies a transformation of the `Accumulator` with the `PublicKey`, given a 64-byte transcript `digest`.
     #[allow(clippy::too_many_arguments, clippy::cognitive_complexity)]
     pub fn verify_transformation_full(
-        input: &[u8],
         output: &[u8],
-        key: &PublicKey<E>,
-        digest: &[u8],
-        input_is_compressed: UseCompression,
         output_is_compressed: UseCompression,
-        check_input_for_correctness: CheckForCorrectness,
         check_output_for_correctness: CheckForCorrectness,
         parameters: &'a CeremonyParams<E>,
     ) -> Result<()> {
         raw_accumulator::verify_full(
-            (input, input_is_compressed, check_input_for_correctness),
             (output, output_is_compressed, check_output_for_correctness),
-            key,
-            digest,
+            parameters,
+        )?;
+        Ok(())
+    }
+
+    /// Combines accumulators
+    #[allow(clippy::too_many_arguments, clippy::cognitive_complexity)]
+    pub fn combine(
+        inputs: &[&[u8]],
+        inputs_are_compressed: UseCompression,
+        output: &mut [u8],
+        output_is_compressed: UseCompression,
+        parameters: &'a CeremonyParams<E>,
+    ) -> Result<()> {
+        raw_accumulator::combine(
+            inputs
+                .iter()
+                .map(|i| (*i, inputs_are_compressed))
+                .collect::<Vec<_>>()
+                .as_slice(),
+            (output, output_is_compressed),
             parameters,
         )?;
         Ok(())
@@ -176,11 +189,10 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::raw::raw_accumulator::{combine, verify_full};
     use rand::thread_rng;
     use snark_utils::{batch_exp, calculate_hash, derive_rng_from_seed, generate_powers_of_tau};
     use test_helpers::{random_point, random_point_vec};
-    use tracing_subscriber::fmt::{time::ChronoUtc, Subscriber};
-    use tracing_subscriber::EnvFilter;
     use zexe_algebra::{AffineCurve, Bls12_377, Bls12_381, ProjectiveCurve, BW6_761};
 
     #[test]
@@ -301,12 +313,6 @@ mod tests {
 
     #[test]
     fn test_verify_transformation() {
-        Subscriber::builder()
-            .with_target(false)
-            .with_timer(ChronoUtc::rfc3339())
-            .with_env_filter(EnvFilter::from_default_env())
-            .init();
-
         test_verify_transformation_curve::<Bls12_377>(
             2,
             2,
@@ -339,7 +345,7 @@ mod tests {
         let num_chunks = (powers_g1_length + batch - 1) / batch;
 
         for chunk_index in 0..num_chunks {
-            let parameters = CeremonyParams::<E>::new(powers, batch, chunk_index);
+            let parameters = CeremonyParams::<E>::new(chunk_index, powers, batch);
             let correctness = CheckForCorrectness::Yes;
 
             // allocate the input/output vectors
@@ -417,19 +423,21 @@ mod tests {
             );
             assert!(res.is_ok());
 
-            // verification will fail if the old hash is used
-            let res = BatchedAccumulator::verify_transformation_chunk(
-                &output,
-                &output_2,
-                &pubkey,
-                &blank_hash(),
-                compressed_output,
-                compressed_output,
-                correctness,
-                correctness,
-                &parameters,
-            );
-            assert!(res.is_err());
+            if parameters.chunk_index == 0 {
+                // verification will fail if the old hash is used
+                let res = BatchedAccumulator::verify_transformation_chunk(
+                    &output,
+                    &output_2,
+                    &pubkey,
+                    &blank_hash(),
+                    compressed_output,
+                    compressed_output,
+                    correctness,
+                    correctness,
+                    &parameters,
+                );
+                assert!(res.is_err());
+            }
 
             /* TODO(kobi): bring back test
             // verification will fail if even 1 byte is modified
@@ -448,6 +456,206 @@ mod tests {
             assert!(res.is_err());
              */
         }
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_verify_transformation_full_wrong_chunks() {
+        test_verify_transformation_full_curve::<BW6_761>(
+            4,
+            4,
+            UseCompression::No,
+            UseCompression::Yes,
+            true,
+        );
+    }
+
+    #[test]
+    fn test_verify_transformation_full() {
+        test_verify_transformation_full_curve::<Bls12_377>(
+            4,
+            4,
+            UseCompression::Yes,
+            UseCompression::Yes,
+            false,
+        );
+        test_verify_transformation_full_curve::<Bls12_377>(
+            4,
+            4,
+            UseCompression::Yes,
+            UseCompression::Yes,
+            false,
+        );
+        test_verify_transformation_full_curve::<Bls12_377>(
+            4,
+            4,
+            UseCompression::No,
+            UseCompression::No,
+            false,
+        );
+        test_verify_transformation_full_curve::<Bls12_377>(
+            4,
+            4,
+            UseCompression::Yes,
+            UseCompression::No,
+            false,
+        );
+        test_verify_transformation_full_curve::<Bls12_381>(
+            4,
+            4,
+            UseCompression::No,
+            UseCompression::Yes,
+            false,
+        );
+        test_verify_transformation_full_curve::<BW6_761>(
+            4,
+            4,
+            UseCompression::No,
+            UseCompression::Yes,
+            false,
+        );
+    }
+
+    fn test_verify_transformation_full_curve<E: Engine>(
+        powers: usize,
+        batch: usize,
+        compressed_input: UseCompression,
+        compressed_output: UseCompression,
+        use_wrong_chunks: bool,
+    ) {
+        let powers_length = 1 << powers;
+        let powers_g1_length = (powers_length << 1) - 1;
+        let num_chunks = (powers_g1_length + batch - 1) / batch;
+
+        let mut chunks_participant_2: Vec<Vec<u8>> = vec![];
+
+        for chunk_index in 0..num_chunks {
+            let parameters = CeremonyParams::<E>::new(chunk_index, powers, batch);
+            let correctness = CheckForCorrectness::Yes;
+
+            // allocate the input/output vectors
+            let (input, _) = generate_input(&parameters, compressed_input);
+            let mut output = generate_output(&parameters, compressed_output);
+
+            // Construct our keypair
+            let current_accumulator_hash = blank_hash();
+            let mut rng = derive_rng_from_seed(b"test_verify_transformation 1");
+            let (pubkey, privkey) =
+                crate::keypair::keypair(&mut rng, current_accumulator_hash.as_ref())
+                    .expect("could not generate keypair");
+
+            // transform the accumulator
+            BatchedAccumulator::contribute(
+                &input,
+                &mut output,
+                compressed_input,
+                compressed_output,
+                CheckForCorrectness::Yes,
+                &privkey,
+                &parameters,
+            )
+            .unwrap();
+            // ensure that the key is not available to the verifier
+            drop(privkey);
+
+            let res = BatchedAccumulator::verify_transformation_chunk(
+                &input,
+                &output,
+                &pubkey,
+                &current_accumulator_hash,
+                compressed_input,
+                compressed_output,
+                correctness,
+                correctness,
+                &parameters,
+            );
+            assert!(res.is_ok());
+
+            // subsequent participants must use the hash of the accumulator they received
+            let current_accumulator_hash = calculate_hash(&output);
+
+            let mut rng = derive_rng_from_seed(b"test_verify_transformation 2");
+            let (pubkey, privkey) =
+                crate::keypair::keypair(&mut rng, current_accumulator_hash.as_ref())
+                    .expect("could not generate keypair");
+
+            // generate a new output vector for the 2nd participant's contribution
+            let mut output_2 = generate_output(&parameters, compressed_output);
+            // we use the first output as input
+            BatchedAccumulator::contribute(
+                &output,
+                &mut output_2,
+                compressed_output,
+                compressed_output,
+                CheckForCorrectness::Yes,
+                &privkey,
+                &parameters,
+            )
+            .unwrap();
+            // ensure that the key is not available to the verifier
+            drop(privkey);
+            if use_wrong_chunks {
+                if chunk_index == 1 {
+                    let chunk_0_contribution: Vec<u8> =
+                        (*chunks_participant_2.iter().last().unwrap()).to_vec();
+                    chunks_participant_2.push(chunk_0_contribution);
+                } else {
+                    chunks_participant_2.push(output_2.clone());
+                }
+            } else {
+                chunks_participant_2.push(output_2.clone());
+            }
+
+            let res = BatchedAccumulator::verify_transformation_chunk(
+                &output,
+                &output_2,
+                &pubkey,
+                &current_accumulator_hash,
+                compressed_output,
+                compressed_output,
+                correctness,
+                correctness,
+                &parameters,
+            );
+            assert!(res.is_ok());
+
+            if parameters.chunk_index == 0 {
+                // verification will fail if the old hash is used
+                let res = BatchedAccumulator::verify_transformation_chunk(
+                    &output,
+                    &output_2,
+                    &pubkey,
+                    &blank_hash(),
+                    compressed_output,
+                    compressed_output,
+                    correctness,
+                    correctness,
+                    &parameters,
+                );
+                assert!(res.is_err());
+            }
+        }
+
+        // Combine the right ones. Combining and verification should work.
+        let chunks_participant_2 = chunks_participant_2
+            .iter()
+            .map(|v| (v.as_slice(), compressed_output))
+            .collect::<Vec<_>>();
+        let parameters = CeremonyParams::<E>::new(0, powers, powers_g1_length);
+        let mut output = generate_output(&parameters, compressed_output);
+        let parameters = CeremonyParams::<E>::new(0, powers, batch);
+
+        combine(
+            &chunks_participant_2,
+            (&mut output, compressed_output),
+            &parameters,
+        )
+        .unwrap();
+        verify_full(
+            (&mut output, compressed_output, CheckForCorrectness::No),
+            &parameters,
+        )
+        .unwrap();
     }
 
     #[test]

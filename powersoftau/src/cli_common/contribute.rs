@@ -1,11 +1,9 @@
 use crate::{
-    batched_accumulator::BatchedAccumulator,
-    keypair::keypair,
-    parameters::CeremonyParams,
+    batched_accumulator::BatchedAccumulator, keypair::keypair, parameters::CeremonyParams,
 };
 use memmap::*;
 use rand::Rng;
-use snark_utils::{calculate_hash, print_hash, UseCompression, CheckForCorrectness};
+use snark_utils::{calculate_hash, print_hash, CheckForCorrectness, UseCompression};
 use std::fs::OpenOptions;
 use std::io::{Read, Write};
 use zexe_algebra::PairingEngine as Engine;
