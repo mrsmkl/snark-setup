@@ -8,7 +8,7 @@ NUM_EPOCHS=30
 BATCH=128
 MAX_CHUNK_INDEX=15 # we have 16 chunks, since we have a total of 2^11-1 powers
 CURVE="bw6"
-SEED=`hexdump -n 16 -e '4/4 "%08X" 1 "\n"' /dev/random`
+SEED=`tr -dc 'A-F0-9' < /dev/urandom | head -c32`
 
 powersoftau="cargo run --release --bin powersoftau -- --curve-kind $CURVE --batch-size $BATCH --power $POWER --seed $SEED"
 phase2="cargo run --release --bin prepare_phase2 -- --curve-kind $CURVE --batch-size $BATCH --power $POWER --phase2-size $POWER"
