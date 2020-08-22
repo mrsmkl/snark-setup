@@ -3,8 +3,6 @@
 rm -f challenge* response* new_challenge* processed* initial_ceremony* response_list* combined*
 
 POWER=10
-NUM_VALIDATORS=100
-NUM_EPOCHS=30
 BATCH=128
 MAX_CHUNK_INDEX=15 # we have 16 chunks, since we have a total of 2^11-1 powers
 CURVE="bw6"
