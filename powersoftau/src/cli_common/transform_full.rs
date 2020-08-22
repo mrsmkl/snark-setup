@@ -4,8 +4,6 @@ use snark_utils::{calculate_hash, print_hash, CheckForCorrectness, UseCompressio
 use std::fs::OpenOptions;
 use zexe_algebra::PairingEngine as Engine;
 
-const CONTRIBUTION_IS_COMPRESSED: UseCompression = UseCompression::Yes;
-
 pub fn transform_full<T: Engine + Sync>(response_filename: &str, parameters: &CeremonyParams<T>) {
     println!(
         "Will verify and decompress a contribution to accumulator for 2^{} powers of tau",
@@ -19,13 +17,11 @@ pub fn transform_full<T: Engine + Sync>(response_filename: &str, parameters: &Ce
         .expect("unable open response file in this directory");
 
     {
+        let parameters = CeremonyParams::<T>::new(0, parameters.size, parameters.powers_g1_length);
         let metadata = response_reader
             .metadata()
             .expect("unable to get filesystem metadata for response file");
-        let expected_response_length = match CONTRIBUTION_IS_COMPRESSED {
-            UseCompression::Yes => parameters.contribution_size,
-            UseCompression::No => parameters.accumulator_size + parameters.public_key_size,
-        };
+        let expected_response_length = parameters.accumulator_size - parameters.hash_size;
         if metadata.len() != (expected_response_length as u64) {
             panic!(
                 "The size of response file should be {}, but it's {}, so something isn't right.",
@@ -53,7 +49,7 @@ pub fn transform_full<T: Engine + Sync>(response_filename: &str, parameters: &Ce
 
     let res = BatchedAccumulator::verify_transformation_full(
         &response_readable_map,
-        CONTRIBUTION_IS_COMPRESSED,
+        UseCompression::No,
         CheckForCorrectness::No,
         &parameters,
     );

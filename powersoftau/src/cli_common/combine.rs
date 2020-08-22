@@ -1,10 +1,10 @@
 use crate::{batched_accumulator::BatchedAccumulator, parameters::CeremonyParams};
 use memmap::*;
-use snark_utils::{blank_hash, UseCompression};
+use snark_utils::UseCompression;
 use std::fs::{File, OpenOptions};
 use zexe_algebra::PairingEngine as Engine;
 
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader};
 
 const CONTRIBUTION_IS_COMPRESSED: UseCompression = UseCompression::Yes;
 const COMPRESS_NEW_COMBINED: UseCompression = UseCompression::No;
@@ -21,10 +21,12 @@ pub fn combine<T: Engine + Sync>(
     let response_list_reader = BufReader::new(
         File::open(response_list_filename).expect("should have opened the response list"),
     );
-    for line in response_list_reader.lines() {
+    for (chunk_index, line) in response_list_reader.lines().enumerate() {
+        let line = line.expect("should have read line");
+        let parameters = parameters.specialize_to_chunk(chunk_index);
         let response_reader = OpenOptions::new()
             .read(true)
-            .open(line.expect("should have read line"))
+            .open(line)
             .expect("unable open response file in this directory");
         {
             let metadata = response_reader
@@ -52,6 +54,8 @@ pub fn combine<T: Engine + Sync>(
         }
     }
 
+    let parameters_for_output =
+        CeremonyParams::<T>::new(0, parameters.size, parameters.powers_g1_length);
     let writer = OpenOptions::new()
         .read(true)
         .write(true)
@@ -60,7 +64,9 @@ pub fn combine<T: Engine + Sync>(
         .expect("unable to create new combined file in this directory");
 
     writer
-        .set_len(parameters.accumulator_size as u64)
+        .set_len(
+            parameters_for_output.accumulator_size as u64 - parameters_for_output.hash_size as u64,
+        )
         .expect("must make output file large enough");
 
     let mut writable_map = unsafe {
@@ -69,16 +75,7 @@ pub fn combine<T: Engine + Sync>(
             .expect("unable to create a memory map for output")
     };
 
-    {
-        (&mut writable_map[0..])
-            .write_all(blank_hash().as_slice())
-            .expect("unable to write a default hash to mmap");
-
-        writable_map
-            .flush()
-            .expect("unable to write hash to new challenge file");
-    }
-
+    let parameters = CeremonyParams::<T>::new(0, parameters.size, parameters.batch_size);
     let res = BatchedAccumulator::combine(
         readers
             .iter()

@@ -186,9 +186,7 @@ impl<E: PairingEngine> CeremonyParams<E> {
     }
 
     pub fn specialize_to_chunk(&self, chunk_index: usize) -> Self {
-        let mut params = self.clone();
-        params.chunk_index = chunk_index;
-        params
+        Self::new_with_curve(chunk_index, self.curve.clone(), self.size, self.batch_size)
     }
 }
 
