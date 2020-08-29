@@ -1,4 +1,3 @@
-use crate::keypair::PublicKey;
 use crate::parameters::ContributionMode;
 use crate::{batched_accumulator::BatchedAccumulator, parameters::CeremonyParams};
 use memmap::*;
