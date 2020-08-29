@@ -22,6 +22,9 @@ jobs:
          name: Test chunked powers of tau
          command: bash ./powers_of_tau_chunked.sh
       - run:
+         name: Test full powers of tau
+         command: bash ./powers_of_tau_full.sh
+      - run:
           name: Check Style
           command: |
             cargo fmt --all -- --check
