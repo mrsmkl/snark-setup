@@ -391,7 +391,7 @@ mod tests {
 
     fn compat_correctness(check_for_correctness: CheckForCorrectness) -> CheckForCorrectnessV1 {
         match check_for_correctness {
-            CheckForCorrectness::Yes => CheckForCorrectnessV1::Yes,
+            CheckForCorrectness::Both => CheckForCorrectnessV1::Both,
             CheckForCorrectness::No => CheckForCorrectnessV1::No,
         }
     }

@@ -32,17 +32,17 @@ pub fn verify<E: PairingEngine>(
     let _enter = span.enter();
     info!("starting...");
 
-    let before = &mut std::io::Cursor::new(before);
-    let after = &mut std::io::Cursor::new(after);
+    let mut before = std::io::Cursor::new(before);
+    let mut after = std::io::Cursor::new(after);
 
-    let vk_before = VerifyingKey::<E>::deserialize(before)?;
-    let beta_g1_before = E::G1Affine::deserialize(before)?;
+    let vk_before = VerifyingKey::<E>::deserialize(&mut before)?;
+    let beta_g1_before = E::G1Affine::deserialize(&mut before)?;
     // we don't need the previous delta_g1 so we can skip it
     before.seek(SeekFrom::Current(E::G1Affine::SERIALIZED_SIZE as i64))?;
 
-    let vk_after = VerifyingKey::<E>::deserialize(after)?;
-    let beta_g1_after = E::G1Affine::deserialize(after)?;
-    let delta_g1_after = E::G1Affine::deserialize(after)?;
+    let vk_after = VerifyingKey::<E>::deserialize(&mut after)?;
+    let beta_g1_after = E::G1Affine::deserialize(&mut after)?;
+    let delta_g1_after = E::G1Affine::deserialize(&mut after)?;
 
     // VK parameters remain unchanged, except for Delta G2
     // which we check at the end of the function against the new contribution's
@@ -229,25 +229,25 @@ pub fn contribute<E: PairingEngine, R: Rng>(
 
     info!("starting...");
 
-    let buffer = &mut std::io::Cursor::new(buffer);
+    let mut buffer = std::io::Cursor::new(buffer);
     // The VK is small so we read it directly from the start
-    let mut vk = VerifyingKey::<E>::deserialize(buffer)?;
+    let mut vk = VerifyingKey::<E>::deserialize(&mut buffer)?;
     // leave beta_g1 unchanged
     buffer.seek(SeekFrom::Current(E::G1Affine::SERIALIZED_SIZE as i64))?;
     // read delta_g1
-    let mut delta_g1 = E::G1Affine::deserialize(buffer)?;
+    let mut delta_g1 = E::G1Affine::deserialize(&mut buffer)?;
 
     // Skip the vector elements for now so that we can read the contributions
-    skip_vec::<E::G1Affine, _>(buffer)?; // Alpha G1
-    skip_vec::<E::G1Affine, _>(buffer)?; // Beta G1
-    skip_vec::<E::G2Affine, _>(buffer)?; // Beta G2
-    skip_vec::<E::G1Affine, _>(buffer)?; // H
-    skip_vec::<E::G1Affine, _>(buffer)?; // L
+    skip_vec::<E::G1Affine, _>(&mut buffer)?; // Alpha G1
+    skip_vec::<E::G1Affine, _>(&mut buffer)?; // Beta G1
+    skip_vec::<E::G2Affine, _>(&mut buffer)?; // Beta G2
+    skip_vec::<E::G1Affine, _>(&mut buffer)?; // H
+    skip_vec::<E::G1Affine, _>(&mut buffer)?; // L
 
     // Read the transcript hash and the contributions
     let mut cs_hash = [0u8; 64];
     buffer.read_exact(&mut cs_hash)?;
-    let contributions = PublicKey::<E>::read_batch(buffer)?;
+    let contributions = PublicKey::<E>::read_batch(&mut buffer)?;
 
     // Create the keypair
     let Keypair {
@@ -266,24 +266,24 @@ pub fn contribute<E: PairingEngine, R: Rng>(
     // go back to the start of the buffer to write the updated vk and delta_g1
     buffer.seek(SeekFrom::Start(0))?;
     // write the vk
-    vk.serialize(buffer)?;
+    vk.serialize(&mut buffer)?;
     // leave beta_g1 unchanged
     buffer.seek(SeekFrom::Current(E::G1Affine::SERIALIZED_SIZE as i64))?;
     // write delta_g1
-    delta_g1.serialize(buffer)?;
+    delta_g1.serialize(&mut buffer)?;
 
     debug!("updated delta g1 and vk delta g2");
 
-    skip_vec::<E::G1Affine, _>(buffer)?; // Alpha G1
-    skip_vec::<E::G1Affine, _>(buffer)?; // Beta G1
-    skip_vec::<E::G2Affine, _>(buffer)?; // Beta G2
+    skip_vec::<E::G1Affine, _>(&mut buffer)?; // Alpha G1
+    skip_vec::<E::G1Affine, _>(&mut buffer)?; // Beta G1
+    skip_vec::<E::G2Affine, _>(&mut buffer)?; // Beta G2
 
     debug!("skipped unused elements...");
 
     // The previous operations are all on small size elements so do them serially
     // the `h` and `l` queries are relatively large, so we can get a nice speedup
     // by performing the reads and writes in parallel
-    let h_query_len = u64::deserialize(buffer)? as usize;
+    let h_query_len = u64::deserialize(&mut buffer)? as usize;
     let position = buffer.position() as usize;
     let remaining = &mut buffer.get_mut()[position..];
     let (h, l) = remaining.split_at_mut(h_query_len * E::G1Affine::SERIALIZED_SIZE);
@@ -339,7 +339,7 @@ pub fn contribute<E: PairingEngine, R: Rng>(
     buffer.seek(SeekFrom::Current(
         (PublicKey::<E>::size() * contributions.len()) as i64,
     ))?;
-    public_key.write(buffer)?;
+    public_key.write(&mut buffer)?;
 
     info!("done.");
 
@@ -347,8 +347,8 @@ pub fn contribute<E: PairingEngine, R: Rng>(
 }
 
 /// Skips the vector ahead of the cursor.
-fn skip_vec<C: AffineCurve, B: Read + Seek>(buffer: &mut B) -> Result<()> {
-    let len = u64::deserialize(buffer)? as usize;
+fn skip_vec<C: AffineCurve, B: Read + Seek>(mut buffer: B) -> Result<()> {
+    let len = u64::deserialize(&mut buffer)? as usize;
     let skip_len = len * C::SERIALIZED_SIZE;
     buffer.seek(SeekFrom::Current(skip_len as i64))?;
     Ok(())
@@ -367,7 +367,7 @@ fn chunked_mul_queries<C: AffineCurve>(
     let span = info_span!("multiply_query");
     let _enter = span.enter();
     debug!("starting...");
-    let buffer = &mut std::io::Cursor::new(buffer);
+    let mut buffer = std::io::Cursor::new(buffer);
 
     let iters = query_len / batch_size;
     let leftovers = query_len % batch_size;
@@ -376,7 +376,7 @@ fn chunked_mul_queries<C: AffineCurve>(
         let span = info_span!("iter", i);
         let _enter = span.enter();
 
-        mul_query::<C, _>(buffer, element, batch_size)?;
+        mul_query::<C, _>(&mut buffer, element, batch_size)?;
 
         trace!("ok");
     }
@@ -385,7 +385,7 @@ fn chunked_mul_queries<C: AffineCurve>(
         let span = info_span!("iter", i = iters);
         let _enter = span.enter();
 
-        mul_query::<C, _>(buffer, element, leftovers)?;
+        mul_query::<C, _>(&mut buffer, element, leftovers)?;
 
         trace!("ok");
     }
@@ -397,12 +397,12 @@ fn chunked_mul_queries<C: AffineCurve>(
 /// Deserializes `num_els` elements, multiplies them by `element`
 /// and writes them back in place
 fn mul_query<C: AffineCurve, B: Read + Write + Seek>(
-    buffer: &mut B,
+    mut buffer: B,
     element: &C::ScalarField,
     num_els: usize,
 ) -> Result<()> {
     let mut query = (0..num_els)
-        .map(|_| C::deserialize(buffer))
+        .map(|_| C::deserialize(&mut buffer))
         .collect::<std::result::Result<Vec<_>, _>>()?; // why can't we use the aliased error type here?
 
     batch_mul(&mut query, element)?;
@@ -413,7 +413,7 @@ fn mul_query<C: AffineCurve, B: Read + Write + Seek>(
     ))?;
     query
         .iter()
-        .map(|el| el.serialize(buffer))
+        .map(|el| el.serialize(&mut buffer))
         .collect::<std::result::Result<Vec<_>, _>>()?;
 
     Ok(())
@@ -435,8 +435,8 @@ fn chunked_ensure_unchanged_vec<C: AffineCurve>(
     let len_after = after.len() / C::SERIALIZED_SIZE;
     ensure_unchanged(len_before, len_after, kind.clone())?;
 
-    let before = &mut std::io::Cursor::new(before);
-    let after = &mut std::io::Cursor::new(after);
+    let mut before = std::io::Cursor::new(before);
+    let mut after = std::io::Cursor::new(after);
 
     let iters = len_before / batch_size;
     let leftovers = len_before % batch_size;
@@ -444,7 +444,7 @@ fn chunked_ensure_unchanged_vec<C: AffineCurve>(
         let span1 = info_span!("iter", i);
         let _enter = span1.enter();
 
-        let (els_before, els_after) = read_batch::<C, _>(before, after, batch_size)?;
+        let (els_before, els_after) = read_batch::<C, _>(&mut before, &mut after, batch_size)?;
         ensure_unchanged_vec(&els_before, &els_after, kind)?;
 
         trace!("ok");
@@ -455,7 +455,7 @@ fn chunked_ensure_unchanged_vec<C: AffineCurve>(
         let span1 = info_span!("iter", i = iters);
         let _enter = span1.enter();
 
-        let (els_before, els_after) = read_batch::<C, _>(before, after, leftovers)?;
+        let (els_before, els_after) = read_batch::<C, _>(&mut before, &mut after, leftovers)?;
         ensure_unchanged_vec(&els_before, &els_after, kind)?;
 
         trace!("ok");
@@ -486,19 +486,21 @@ fn chunked_check_ratio<E: PairingEngine>(
         return Err(Phase2Error::InvalidLength.into());
     }
 
-    let before = &mut std::io::Cursor::new(before);
-    let after = &mut std::io::Cursor::new(after);
+    let mut before = std::io::Cursor::new(before);
+    let mut after = std::io::Cursor::new(after);
 
     let iters = len_before / batch_size;
     let leftovers = len_before % batch_size;
     for _ in 0..iters {
-        let (els_before, els_after) = read_batch::<E::G1Affine, _>(before, after, batch_size)?;
+        let (els_before, els_after) =
+            read_batch::<E::G1Affine, _>(&mut before, &mut after, batch_size)?;
         let pairs = merge_pairs(&els_before, &els_after);
         check_same_ratio::<E>(&pairs, &(after_delta_g2, before_delta_g2), err)?;
     }
     // in case the batch size did not evenly divide the number of queries
     if leftovers > 0 {
-        let (els_before, els_after) = read_batch::<E::G1Affine, _>(before, after, leftovers)?;
+        let (els_before, els_after) =
+            read_batch::<E::G1Affine, _>(&mut before, &mut after, leftovers)?;
         let pairs = merge_pairs(&els_before, &els_after);
         check_same_ratio::<E>(&pairs, &(after_delta_g2, before_delta_g2), err)?;
     }
@@ -509,15 +511,15 @@ fn chunked_check_ratio<E: PairingEngine>(
 }
 
 fn read_batch<C: AffineCurve, B: Read + Write + Seek>(
-    before: &mut B,
-    after: &mut B,
+    mut before: B,
+    mut after: B,
     batch_size: usize,
 ) -> Result<(Vec<C>, Vec<C>)> {
     let els_before = (0..batch_size)
-        .map(|_| C::deserialize(before))
+        .map(|_| C::deserialize(&mut before))
         .collect::<std::result::Result<Vec<_>, _>>()?;
     let els_after = (0..batch_size)
-        .map(|_| C::deserialize(after))
+        .map(|_| C::deserialize(&mut after))
         .collect::<std::result::Result<Vec<_>, _>>()?;
     Ok((els_before, els_after))
 }

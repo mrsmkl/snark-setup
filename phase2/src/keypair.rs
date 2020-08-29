@@ -56,19 +56,19 @@ impl<E: PairingEngine> PublicKey<E> {
         response
     }
 
-    pub fn write_batch<W: Write>(writer: &mut W, pubkeys: &[PublicKey<E>]) -> Result<()> {
+    pub fn write_batch<W: Write>(mut writer: W, pubkeys: &[PublicKey<E>]) -> Result<()> {
         writer.write_u32::<BigEndian>(pubkeys.len() as u32)?;
         for pubkey in pubkeys {
-            pubkey.write(writer)?;
+            pubkey.write(&mut writer)?;
         }
         Ok(())
     }
 
-    pub fn read_batch<R: Read>(reader: &mut R) -> Result<Vec<Self>> {
+    pub fn read_batch<R: Read>(mut reader: R) -> Result<Vec<Self>> {
         let mut contributions = vec![];
         let contributions_len = reader.read_u32::<BigEndian>()? as usize;
         for _ in 0..contributions_len {
-            contributions.push(PublicKey::read(reader)?);
+            contributions.push(PublicKey::read(&mut reader)?);
         }
         Ok(contributions)
     }
@@ -79,22 +79,22 @@ impl<E: PairingEngine> PublicKey<E> {
 
     /// Serializes the key's **uncompressed** points to the provided
     /// writer
-    pub fn write<W: Write>(&self, writer: &mut W) -> Result<()> {
-        self.delta_after.serialize_uncompressed(writer)?;
-        self.s.serialize_uncompressed(writer)?;
-        self.s_delta.serialize_uncompressed(writer)?;
-        self.r_delta.serialize_uncompressed(writer)?;
+    pub fn write<W: Write>(&self, mut writer: W) -> Result<()> {
+        self.delta_after.serialize_uncompressed(&mut writer)?;
+        self.s.serialize_uncompressed(&mut writer)?;
+        self.s_delta.serialize_uncompressed(&mut writer)?;
+        self.r_delta.serialize_uncompressed(&mut writer)?;
         writer.write_all(&self.transcript)?;
         Ok(())
     }
 
     /// Reads the key's **uncompressed** points from the provided
     /// reader
-    pub fn read<R: Read>(reader: &mut R) -> Result<PublicKey<E>> {
-        let delta_after = reader.read_element(UseCompression::No, CheckForCorrectness::Yes)?;
-        let s = reader.read_element(UseCompression::No, CheckForCorrectness::Yes)?;
-        let s_delta = reader.read_element(UseCompression::No, CheckForCorrectness::Yes)?;
-        let r_delta = reader.read_element(UseCompression::No, CheckForCorrectness::Yes)?;
+    pub fn read<R: Read>(mut reader: R) -> Result<PublicKey<E>> {
+        let delta_after = reader.read_element(UseCompression::No, CheckForCorrectness::Both)?;
+        let s = reader.read_element(UseCompression::No, CheckForCorrectness::Both)?;
+        let s_delta = reader.read_element(UseCompression::No, CheckForCorrectness::Both)?;
+        let r_delta = reader.read_element(UseCompression::No, CheckForCorrectness::Both)?;
         let mut transcript = [0u8; 64];
         reader.read_exact(&mut transcript)?;
 

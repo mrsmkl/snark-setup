@@ -21,7 +21,7 @@ dependencies = [
 [[package]]
 name = "algebra"
 version = "0.1.0"
-source = "git+https://github.com/scipr-lab/zexe#bf566aa37d3a97fd14101c337bd4c49fea3b575d"
+source = "git+https://github.com/scipr-lab/zexe?rev=38b6f6f2c6b9a6a1b5e8eb90b1287c98b06520d1#38b6f6f2c6b9a6a1b5e8eb90b1287c98b06520d1"
 dependencies = [
  "algebra-core",
 ]
@@ -29,7 +29,7 @@ dependencies = [
 [[package]]
 name = "algebra-core"
 version = "0.1.0"
-source = "git+https://github.com/scipr-lab/zexe#bf566aa37d3a97fd14101c337bd4c49fea3b575d"
+source = "git+https://github.com/scipr-lab/zexe?rev=38b6f6f2c6b9a6a1b5e8eb90b1287c98b06520d1#38b6f6f2c6b9a6a1b5e8eb90b1287c98b06520d1"
 dependencies = [
  "algebra-core-derive",
  "derivative",
@@ -44,7 +44,7 @@ dependencies = [
 [[package]]
 name = "algebra-core-derive"
 version = "0.1.0"
-source = "git+https://github.com/scipr-lab/zexe#bf566aa37d3a97fd14101c337bd4c49fea3b575d"
+source = "git+https://github.com/scipr-lab/zexe?rev=38b6f6f2c6b9a6a1b5e8eb90b1287c98b06520d1#38b6f6f2c6b9a6a1b5e8eb90b1287c98b06520d1"
 dependencies = [
  "proc-macro2 1.0.18",
  "quote 1.0.7",
@@ -98,7 +98,7 @@ checksum = "f8aac770f1885fd7e387acedd76065302551364496e46b3dd00860b2f8359b9d"
 [[package]]
 name = "bench-utils"
 version = "0.1.0"
-source = "git+https://github.com/scipr-lab/zexe#bf566aa37d3a97fd14101c337bd4c49fea3b575d"
+source = "git+https://github.com/scipr-lab/zexe?rev=38b6f6f2c6b9a6a1b5e8eb90b1287c98b06520d1#38b6f6f2c6b9a6a1b5e8eb90b1287c98b06520d1"
 
 [[package]]
 name = "bitflags"
@@ -132,7 +132,7 @@ dependencies = [
 [[package]]
 name = "bls-crypto"
 version = "0.1.4"
-source = "git+https://github.com/celo-org/celo-bls-snark-rs#f5addeecd7b40af584344c3dd799d22c87848de3"
+source = "git+https://github.com/celo-org/celo-bls-snark-rs?branch=kobigurk/update_zexe#e3e1f1bb78e8de929e040ac7f123baa8f9046e5a"
 dependencies = [
  "algebra",
  "bench-utils",
@@ -154,7 +154,7 @@ dependencies = [
 [[package]]
 name = "bls-gadgets"
 version = "0.1.4"
-source = "git+https://github.com/celo-org/celo-bls-snark-rs#f5addeecd7b40af584344c3dd799d22c87848de3"
+source = "git+https://github.com/celo-org/celo-bls-snark-rs?branch=kobigurk/update_zexe#e3e1f1bb78e8de929e040ac7f123baa8f9046e5a"
 dependencies = [
  "algebra",
  "bls-crypto",
@@ -261,7 +261,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2f1af9ac737b2dd2d577701e59fd09ba34822f6f2ebdb30a7647405d9e55e16a"
 dependencies = [
  "const-random-macro",
- "proc-macro-hack 0.5.16",
+ "proc-macro-hack 0.5.18",
 ]
 
 [[package]]
@@ -271,7 +271,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "25e4c606eb459dd29f7c57b2e0879f2b6f14ee130918c2b78ccb58a9624e6c7a"
 dependencies = [
  "getrandom",
- "proc-macro-hack 0.5.16",
+ "proc-macro-hack 0.5.18",
 ]
 
 [[package]]
@@ -401,7 +401,7 @@ dependencies = [
 [[package]]
 name = "crypto-primitives"
 version = "0.1.0"
-source = "git+https://github.com/scipr-lab/zexe#bf566aa37d3a97fd14101c337bd4c49fea3b575d"
+source = "git+https://github.com/scipr-lab/zexe?rev=38b6f6f2c6b9a6a1b5e8eb90b1287c98b06520d1#38b6f6f2c6b9a6a1b5e8eb90b1287c98b06520d1"
 dependencies = [
  "algebra-core",
  "bench-utils",
@@ -481,7 +481,7 @@ dependencies = [
 [[package]]
 name = "epoch-snark"
 version = "0.1.4"
-source = "git+https://github.com/celo-org/celo-bls-snark-rs#f5addeecd7b40af584344c3dd799d22c87848de3"
+source = "git+https://github.com/celo-org/celo-bls-snark-rs?branch=kobigurk/update_zexe#e3e1f1bb78e8de929e040ac7f123baa8f9046e5a"
 dependencies = [
  "algebra",
  "blake2s_simd",
@@ -501,7 +501,7 @@ dependencies = [
 [[package]]
 name = "ff-fft"
 version = "0.1.0"
-source = "git+https://github.com/scipr-lab/zexe#bf566aa37d3a97fd14101c337bd4c49fea3b575d"
+source = "git+https://github.com/scipr-lab/zexe?rev=38b6f6f2c6b9a6a1b5e8eb90b1287c98b06520d1#38b6f6f2c6b9a6a1b5e8eb90b1287c98b06520d1"
 dependencies = [
  "algebra-core",
  "rand 0.7.3",
@@ -511,7 +511,7 @@ dependencies = [
 [[package]]
 name = "field-assembly"
 version = "0.1.0"
-source = "git+https://github.com/scipr-lab/zexe#bf566aa37d3a97fd14101c337bd4c49fea3b575d"
+source = "git+https://github.com/scipr-lab/zexe?rev=38b6f6f2c6b9a6a1b5e8eb90b1287c98b06520d1#38b6f6f2c6b9a6a1b5e8eb90b1287c98b06520d1"
 dependencies = [
  "mince",
 ]
@@ -551,7 +551,7 @@ dependencies = [
 [[package]]
 name = "gm17"
 version = "0.1.0"
-source = "git+https://github.com/scipr-lab/zexe#bf566aa37d3a97fd14101c337bd4c49fea3b575d"
+source = "git+https://github.com/scipr-lab/zexe?rev=38b6f6f2c6b9a6a1b5e8eb90b1287c98b06520d1#38b6f6f2c6b9a6a1b5e8eb90b1287c98b06520d1"
 dependencies = [
  "algebra-core",
  "bench-utils",
@@ -565,7 +565,7 @@ dependencies = [
 [[package]]
 name = "groth16"
 version = "0.1.0"
-source = "git+https://github.com/scipr-lab/zexe#bf566aa37d3a97fd14101c337bd4c49fea3b575d"
+source = "git+https://github.com/scipr-lab/zexe?rev=38b6f6f2c6b9a6a1b5e8eb90b1287c98b06520d1#38b6f6f2c6b9a6a1b5e8eb90b1287c98b06520d1"
 dependencies = [
  "algebra-core",
  "bench-utils",
@@ -766,7 +766,7 @@ dependencies = [
 [[package]]
 name = "mince"
 version = "0.1.0"
-source = "git+https://github.com/scipr-lab/zexe#bf566aa37d3a97fd14101c337bd4c49fea3b575d"
+source = "git+https://github.com/scipr-lab/zexe?rev=38b6f6f2c6b9a6a1b5e8eb90b1287c98b06520d1#38b6f6f2c6b9a6a1b5e8eb90b1287c98b06520d1"
 dependencies = [
  "quote 1.0.7",
  "syn 1.0.33",
@@ -803,9 +803,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.4.0"
+version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b631f7e854af39a1739f401cf34a8a013dfe09eac4fa4dba91e9768bd28168d"
+checksum = "260e51e7efe62b592207e9e13a68e43692a7a279171d6ba57abd208bf23645ad"
 
 [[package]]
 name = "oorandom"
@@ -888,9 +888,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro-hack"
-version = "0.5.16"
+version = "0.5.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7e0456befd48169b9f13ef0f0ad46d492cf9d2dbb918bcf38e01eed4ce3ec5e4"
+checksum = "99c605b9a0adc77b7211c6b1f722dcb613d68d66859a44f3d485a6da332b0598"
 
 [[package]]
 name = "proc-macro-hack-impl"
@@ -943,7 +943,7 @@ dependencies = [
 [[package]]
 name = "r1cs-core"
 version = "0.1.0"
-source = "git+https://github.com/scipr-lab/zexe#bf566aa37d3a97fd14101c337bd4c49fea3b575d"
+source = "git+https://github.com/scipr-lab/zexe?rev=38b6f6f2c6b9a6a1b5e8eb90b1287c98b06520d1#38b6f6f2c6b9a6a1b5e8eb90b1287c98b06520d1"
 dependencies = [
  "algebra-core",
  "smallvec",
@@ -952,7 +952,7 @@ dependencies = [
 [[package]]
 name = "r1cs-std"
 version = "0.1.0"
-source = "git+https://github.com/scipr-lab/zexe#bf566aa37d3a97fd14101c337bd4c49fea3b575d"
+source = "git+https://github.com/scipr-lab/zexe?rev=38b6f6f2c6b9a6a1b5e8eb90b1287c98b06520d1#38b6f6f2c6b9a6a1b5e8eb90b1287c98b06520d1"
 dependencies = [
  "algebra",
  "derivative",

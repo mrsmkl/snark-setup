@@ -21,14 +21,18 @@ impl fmt::Display for UseCompression {
 /// check this theirself.
 #[derive(Copy, Clone, PartialEq)]
 pub enum CheckForCorrectness {
-    Yes,
+    Both,
+    OnlyNonZero,
+    OnlyInGroup,
     No,
 }
 
 impl fmt::Display for CheckForCorrectness {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            CheckForCorrectness::Yes => write!(f, "Yes"),
+            CheckForCorrectness::Both => write!(f, "Both"),
+            CheckForCorrectness::OnlyNonZero => write!(f, "OnlyNonZero"),
+            CheckForCorrectness::OnlyInGroup => write!(f, "OnlyInGroup"),
             CheckForCorrectness::No => write!(f, "No"),
         }
     }

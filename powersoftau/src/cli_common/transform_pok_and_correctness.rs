@@ -12,7 +12,7 @@ const PREVIOUS_CHALLENGE_IS_COMPRESSED: UseCompression = UseCompression::No;
 const CONTRIBUTION_IS_COMPRESSED: UseCompression = UseCompression::Yes;
 const COMPRESS_NEW_CHALLENGE: UseCompression = UseCompression::No;
 
-pub fn transform<T: Engine + Sync>(
+pub fn transform_pok_and_correctness<T: Engine + Sync>(
     challenge_filename: &str,
     response_filename: &str,
     new_challenge_filename: &str,
@@ -127,7 +127,7 @@ pub fn transform<T: Engine + Sync>(
         "Verifying a contribution to contain proper powers and correspond to the public key..."
     );
 
-    let res = BatchedAccumulator::verify_transformation_chunk(
+    let res = BatchedAccumulator::verify_transformation_pok_and_correctness(
         &challenge_readable_map,
         &response_readable_map,
         &public_key,
@@ -135,7 +135,7 @@ pub fn transform<T: Engine + Sync>(
         PREVIOUS_CHALLENGE_IS_COMPRESSED,
         CONTRIBUTION_IS_COMPRESSED,
         CheckForCorrectness::No,
-        CheckForCorrectness::Yes,
+        CheckForCorrectness::Both,
         &parameters,
     );
 

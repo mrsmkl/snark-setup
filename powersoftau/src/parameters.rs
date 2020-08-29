@@ -2,6 +2,12 @@ use snark_utils::{ElementType, UseCompression};
 use std::marker::PhantomData;
 use zexe_algebra::{ConstantSerializedSize, PairingEngine};
 
+#[derive(Clone, PartialEq, Eq, Debug, Copy)]
+pub enum ContributionMode {
+    Full,
+    Chunked,
+}
+
 /// The sizes of the group elements of a curve
 #[derive(Clone, PartialEq, Eq, Default, Debug)]
 pub struct CurveParams<E> {
@@ -62,8 +68,12 @@ impl<E> CurveParams<E> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// The parameters used for the trusted setup ceremony
 pub struct CeremonyParams<E> {
+    /// The contribution mode
+    pub contribution_mode: ContributionMode,
     /// The chunk index
     pub chunk_index: usize,
+    /// The chunk size
+    pub chunk_size: usize,
     /// The type of the curve being used
     pub curve: CurveParams<E>,
     /// The number of Powers of Tau G1 elements which will be accumulated
@@ -90,19 +100,42 @@ impl<E: PairingEngine> CeremonyParams<E> {
     pub fn new_for_first_chunk(size: usize, batch_size: usize) -> Self {
         // create the curve
         let curve = CurveParams::<E>::new();
-        Self::new_with_curve(0, curve, size, batch_size)
+        //TODO(kobi): meh
+        Self::new_with_curve(
+            ContributionMode::Full,
+            0,
+            batch_size,
+            curve,
+            size,
+            batch_size,
+        )
     }
 
-    pub fn new(chunk_index: usize, size: usize, batch_size: usize) -> Self {
+    pub fn new(
+        contribution_mode: ContributionMode,
+        chunk_index: usize,
+        chunk_size: usize,
+        size: usize,
+        batch_size: usize,
+    ) -> Self {
         // create the curve
         let curve = CurveParams::<E>::new();
-        Self::new_with_curve(chunk_index, curve, size, batch_size)
+        Self::new_with_curve(
+            contribution_mode,
+            chunk_index,
+            chunk_size,
+            curve,
+            size,
+            batch_size,
+        )
     }
 
     /// Constructs a new ceremony parameters object from the directly provided curve with parameters
     /// Consider using the `new` method if you want to use one of the pre-implemented curves
     pub fn new_with_curve(
+        contribution_mode: ContributionMode,
         chunk_index: usize,
+        chunk_size: usize,
         curve: CurveParams<E>,
         size: usize,
         batch_size: usize,
@@ -115,8 +148,13 @@ impl<E: PairingEngine> CeremonyParams<E> {
         // 2^{size+1} - 1
         let powers_g1_length = (powers_length << 1) - 1;
 
-        let (g1_els_size, other_els_size) =
-            chunk_element_sizes(batch_size, chunk_index, powers_g1_length, powers_length);
+        let (g1_els_size, other_els_size) = chunk_element_sizes(
+            contribution_mode,
+            chunk_size,
+            chunk_index,
+            powers_g1_length,
+            powers_length,
+        );
 
         let accumulator_size =
             // G1 Tau powers
@@ -155,7 +193,9 @@ impl<E: PairingEngine> CeremonyParams<E> {
             public_key_size;
 
         Self {
+            contribution_mode,
             chunk_index,
+            chunk_size,
             curve,
             size,
             batch_size,
@@ -178,15 +218,28 @@ impl<E: PairingEngine> CeremonyParams<E> {
 
     pub fn chunk_element_sizes(&self) -> (usize, usize) {
         chunk_element_sizes(
-            self.batch_size,
+            self.contribution_mode,
+            self.chunk_size,
             self.chunk_index,
             self.powers_g1_length,
             self.powers_length,
         )
     }
 
-    pub fn specialize_to_chunk(&self, chunk_index: usize) -> Self {
-        Self::new_with_curve(chunk_index, self.curve.clone(), self.size, self.batch_size)
+    pub fn specialize_to_chunk(
+        &self,
+        contribution_mode: ContributionMode,
+        chunk_index: usize,
+        chunk_size: usize,
+    ) -> Self {
+        Self::new_with_curve(
+            contribution_mode,
+            chunk_index,
+            chunk_size,
+            self.curve.clone(),
+            self.size,
+            self.batch_size,
+        )
     }
 }
 
@@ -217,12 +270,16 @@ mod tests {
 }
 
 pub fn chunk_element_sizes(
-    batch_size: usize,
+    contribution_mode: ContributionMode,
+    chunk_size: usize,
     chunk_index: usize,
     powers_g1_length: usize,
     powers_length: usize,
 ) -> (usize, usize) {
-    let (start, end) = (chunk_index * batch_size, (chunk_index + 1) * batch_size);
+    let (start, end) = match contribution_mode {
+        ContributionMode::Full => (0, powers_g1_length),
+        ContributionMode::Chunked => (chunk_index * chunk_size, (chunk_index + 1) * chunk_size),
+    };
     let g1_els_in_chunk = if end > powers_g1_length {
         powers_g1_length - start
     } else {

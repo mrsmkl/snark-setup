@@ -279,10 +279,10 @@ impl<E: PairingEngine> MPCParameters<E> {
 
     /// Serialize these parameters. The serialized parameters
     /// can be read by Zexe's Groth16 `Parameters`.
-    pub fn write<W: Write>(&self, writer: &mut W) -> Result<()> {
-        self.params.serialize(writer)?;
+    pub fn write<W: Write>(&self, mut writer: W) -> Result<()> {
+        self.params.serialize(&mut writer)?;
         writer.write_all(&self.cs_hash)?;
-        PublicKey::write_batch(writer, &self.contributions)?;
+        PublicKey::write_batch(&mut writer, &self.contributions)?;
 
         Ok(())
     }

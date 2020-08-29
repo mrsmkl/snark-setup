@@ -44,7 +44,7 @@ fn read<C: AffineCurve>(c: &mut Criterion, el_type: &str) {
                 &num_els,
                 |b, _num_els| {
                     b.iter(|| {
-                        buf.read_batch::<C>(*compression, CheckForCorrectness::Yes)
+                        buf.read_batch::<C>(*compression, CheckForCorrectness::Both)
                             .unwrap()
                     });
                 },

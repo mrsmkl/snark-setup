@@ -46,29 +46,36 @@ type AccumulatorElementsRef<'a, E: PairingEngine> = (
     &'a E::G2Affine,
 );
 
+use crate::parameters::ContributionMode;
 /// Helper function to iterate over the accumulator in chunks.
 /// `action` will perform an action on the chunk
 use itertools::{Itertools, MinMaxResult};
+
 fn iter_chunk(
     parameters: &CeremonyParams<impl PairingEngine>,
     mut action: impl FnMut(usize, usize) -> Result<()>,
 ) -> Result<()> {
-    (0..parameters.powers_g1_length)
+    let (min, max) = match parameters.contribution_mode {
+        ContributionMode::Chunked => (
+            parameters.chunk_index * parameters.chunk_size,
+            std::cmp::min(
+                (parameters.chunk_index + 1) * parameters.chunk_size,
+                parameters.powers_g1_length,
+            ),
+        ),
+        ContributionMode::Full => (0, parameters.powers_g1_length),
+    };
+    (min..max)
         .chunks(parameters.batch_size - 1)
         .into_iter()
         .map(|chunk| {
             let (start, end) = match chunk.minmax() {
-                MinMaxResult::MinMax(start, end) => (
-                    start,
-                    if end >= parameters.powers_g1_length - 1 {
-                        end + 1
-                    } else {
-                        end + 2
-                    },
-                ), // ensure there's overlap between chunks
+                MinMaxResult::MinMax(start, end) => {
+                    (start, if end >= max - 1 { end + 1 } else { end + 2 })
+                } // ensure there's overlap between chunks
                 MinMaxResult::OneElement(start) => (
                     start,
-                    if start >= parameters.powers_g1_length - 1 {
+                    if start >= min - 1 {
                         start + 1
                     } else {
                         start + 2
@@ -170,7 +177,7 @@ fn check_elements_are_non_zero_and_in_prime_order_subgroup<C: AffineCurve>(
     buffer[start * size..end * size].read_batch_preallocated(
         &mut elements[0..end - start],
         compression,
-        CheckForCorrectness::Yes,
+        CheckForCorrectness::Both,
     )?;
     // TODO(kobi): replace with batch subgroup check
     let all_in_prime_order_subgroup = elements.iter().all(|p| {
@@ -240,7 +247,7 @@ fn read_initial_elements_with_amount<C: AffineCurve>(
 /// are not zero, that they're in the prime order subgroup.
 /// In the first chunk, it also checks the proofs of knowledge
 /// and that the elements were correctly multiplied.
-pub fn verify_chunk<E: PairingEngine>(
+pub fn verify_pok_and_correctness<E: PairingEngine>(
     (input, compressed_input, check_input_for_correctness): (
         &[u8],
         UseCompression,
@@ -255,7 +262,7 @@ pub fn verify_chunk<E: PairingEngine>(
     digest: &[u8],
     parameters: &CeremonyParams<E>,
 ) -> Result<()> {
-    let span = info_span!("phase1-verify");
+    let span = info_span!("phase1-verify-pok-and-correctness");
     let _enter = span.enter();
 
     info!("starting...");
@@ -264,7 +271,7 @@ pub fn verify_chunk<E: PairingEngine>(
         split(input, parameters, compressed_input);
     let (tau_g1, tau_g2, alpha_g1, beta_g1, beta_g2) = split(output, parameters, compressed_output);
 
-    if parameters.chunk_index == 0 {
+    if parameters.contribution_mode == ContributionMode::Full || parameters.chunk_index == 0 {
         // Ensure the key ratios are correctly produced
         let [tau_g2_s, alpha_g2_s, beta_g2_s] = compute_g2_s_key(&key, &digest)?;
         // put in tuple form for convenience
@@ -378,75 +385,96 @@ pub fn verify_chunk<E: PairingEngine>(
 
     debug!("initial elements were computed correctly");
 
-    let start = parameters.chunk_index * parameters.batch_size;
-    let end = (parameters.chunk_index + 1) * parameters.batch_size;
-    let (g1_els_in_chunk, other_els_in_chunk) = parameters.chunk_element_sizes();
+    iter_chunk(&parameters, |start, end| {
+        // preallocate 2 vectors per batch
+        // Ensure that the pairs are created correctly (we do this in chunks!)
+        // load `batch_size` chunks on each iteration and perform the transformation
+        debug!("verifying chunk from {} to {}", start, end);
 
-    // preallocate 2 vectors per batch
-    // Ensure that the pairs are created correctly (we do this in chunks!)
-    // load `batch_size` chunks on each iteration and perform the transformation
-    debug!("verifying chunk from {} to {}", start, end);
-    let span = info_span!("batch", start, end);
-    let _enter = span.enter();
-    rayon::scope(|t| {
+        let (start_chunk, end_chunk) = match parameters.contribution_mode {
+            ContributionMode::Chunked => (
+                start - parameters.chunk_index * parameters.chunk_size,
+                end - parameters.chunk_index * parameters.chunk_size,
+            ),
+            ContributionMode::Full => (start, end),
+        };
+        let span = info_span!("batch", start, end);
         let _enter = span.enter();
-        t.spawn(|_| {
+        rayon::scope(|t| {
             let _enter = span.enter();
-            let mut g1 = vec![E::G1Affine::zero(); g1_els_in_chunk];
-            check_elements_are_non_zero_and_in_prime_order_subgroup::<E::G1Affine>(
-                (tau_g1, compressed_output),
-                (0, g1_els_in_chunk),
-                &mut g1,
-            )
-            .expect("could not check ratios for Tau G1");
-
-            trace!("tau g1 verification successful");
-        });
-
-        if other_els_in_chunk > 0 {
-            rayon::scope(|t| {
+            t.spawn(|_| {
                 let _enter = span.enter();
-                t.spawn(|_| {
-                    let _enter = span.enter();
-                    let mut g2 = vec![E::G2Affine::zero(); other_els_in_chunk];
-                    check_elements_are_non_zero_and_in_prime_order_subgroup::<E::G2Affine>(
-                        (tau_g2, compressed_output),
-                        (0, other_els_in_chunk),
-                        &mut g2,
-                    )
-                    .expect("could not check ratios for Tau G2");
-                    trace!("tau g2 verification successful");
-                });
+                let mut g1 = vec![E::G1Affine::zero(); parameters.batch_size];
+                check_elements_are_non_zero_and_in_prime_order_subgroup::<E::G1Affine>(
+                    (tau_g1, compressed_output),
+                    (start_chunk, end_chunk),
+                    &mut g1,
+                )
+                .expect("could not check ratios for Tau G1");
 
-                t.spawn(|_| {
-                    let _enter = span.enter();
-                    let mut g1 = vec![E::G1Affine::zero(); other_els_in_chunk];
-                    check_elements_are_non_zero_and_in_prime_order_subgroup::<E::G1Affine>(
-                        (alpha_g1, compressed_output),
-                        (0, other_els_in_chunk),
-                        &mut g1,
-                    )
-                    .expect("could not check ratios for Alpha G1");
-
-                    trace!("alpha g1 verification successful");
-                });
-
-                t.spawn(|_| {
-                    let _enter = span.enter();
-                    let mut g1 = vec![E::G1Affine::zero(); other_els_in_chunk];
-                    check_elements_are_non_zero_and_in_prime_order_subgroup::<E::G1Affine>(
-                        (beta_g1, compressed_output),
-                        (0, other_els_in_chunk),
-                        &mut g1,
-                    )
-                    .expect("could not check ratios for Beta G1");
-
-                    trace!("beta g1 verification successful");
-                });
+                trace!("tau g1 verification successful");
             });
-        }
-    });
-    debug!("chunk verification successful");
+
+            if start < parameters.powers_length {
+                let end = if start + parameters.batch_size > parameters.powers_length {
+                    parameters.powers_length
+                } else {
+                    end
+                };
+                let (start_chunk, end_chunk) = match parameters.contribution_mode {
+                    ContributionMode::Chunked => (
+                        start - parameters.chunk_index * parameters.chunk_size,
+                        end - parameters.chunk_index * parameters.chunk_size,
+                    ),
+                    ContributionMode::Full => (start, end),
+                };
+
+                rayon::scope(|t| {
+                    let _enter = span.enter();
+                    t.spawn(|_| {
+                        let _enter = span.enter();
+                        let mut g2 = vec![E::G2Affine::zero(); parameters.batch_size];
+                        check_elements_are_non_zero_and_in_prime_order_subgroup::<E::G2Affine>(
+                            (tau_g2, compressed_output),
+                            (start_chunk, end_chunk),
+                            &mut g2,
+                        )
+                        .expect("could not check ratios for Tau G2");
+                        trace!("tau g2 verification successful");
+                    });
+
+                    t.spawn(|_| {
+                        let _enter = span.enter();
+                        let mut g1 = vec![E::G1Affine::zero(); parameters.batch_size];
+                        check_elements_are_non_zero_and_in_prime_order_subgroup::<E::G1Affine>(
+                            (alpha_g1, compressed_output),
+                            (start_chunk, end_chunk),
+                            &mut g1,
+                        )
+                        .expect("could not check ratios for Alpha G1");
+
+                        trace!("alpha g1 verification successful");
+                    });
+
+                    t.spawn(|_| {
+                        let _enter = span.enter();
+                        let mut g1 = vec![E::G1Affine::zero(); parameters.batch_size];
+                        check_elements_are_non_zero_and_in_prime_order_subgroup::<E::G1Affine>(
+                            (beta_g1, compressed_output),
+                            (start_chunk, end_chunk),
+                            &mut g1,
+                        )
+                        .expect("could not check ratios for Beta G1");
+
+                        trace!("beta g1 verification successful");
+                    });
+                });
+            }
+        });
+        debug!("batch verification successful");
+
+        Ok(())
+    })?;
 
     info!("verification complete");
     Ok(())
@@ -454,9 +482,8 @@ pub fn verify_chunk<E: PairingEngine>(
 
 /// Verifies that the accumulator was transformed correctly
 /// given the `PublicKey` and the so-far hash of the accumulator.
-/// This verifies a single chunk and checks only that the points
-/// are not zero and that they're in the prime order subgroup.
-pub fn verify_full<E: PairingEngine>(
+/// This verifies the ratios in a given accumulator.
+pub fn verify_ratios<E: PairingEngine>(
     (output, compressed_output, check_output_for_correctness): (
         &[u8],
         UseCompression,
@@ -464,7 +491,7 @@ pub fn verify_full<E: PairingEngine>(
     ),
     parameters: &CeremonyParams<E>,
 ) -> Result<()> {
-    let span = info_span!("phase1-verify-full");
+    let span = info_span!("phase1-verify-ratios");
     let _enter = span.enter();
 
     info!("starting...");
@@ -503,7 +530,7 @@ pub fn verify_full<E: PairingEngine>(
     // Ensure that the pairs are created correctly (we do this in chunks!)
     // load `batch_size` chunks on each iteration and perform the transformation
     iter_chunk(&parameters, |start, end| {
-        debug!("verifying chunk from {} to {}", start, end);
+        debug!("verifying batch from {} to {}", start, end);
         let span = info_span!("batch", start, end);
         let _enter = span.enter();
         rayon::scope(|t| {
@@ -593,13 +620,17 @@ pub fn combine<E: PairingEngine>(
     (output, compressed_output): (&mut [u8], UseCompression),
     parameters: &CeremonyParams<E>,
 ) -> Result<()> {
-    let span = info_span!("phase1-contribute");
+    let span = info_span!("phase1-combine");
     let _enter = span.enter();
 
     info!("starting...");
 
     for (chunk_index, (input, compressed_input)) in inputs.iter().enumerate() {
-        let chunk_parameters = parameters.specialize_to_chunk(chunk_index);
+        let chunk_parameters = parameters.specialize_to_chunk(
+            parameters.contribution_mode,
+            chunk_index,
+            parameters.chunk_size,
+        );
         let input = *input;
         let compressed_input = *compressed_input;
 
@@ -609,8 +640,8 @@ pub fn combine<E: PairingEngine>(
         let (tau_g1, tau_g2, alpha_g1, beta_g1, beta_g2) =
             split_at_chunk_mut(output, &chunk_parameters, compressed_output);
 
-        let start = chunk_index * chunk_parameters.batch_size;
-        let end = (chunk_index + 1) * chunk_parameters.batch_size;
+        let start = chunk_index * chunk_parameters.chunk_size;
+        let end = (chunk_index + 1) * chunk_parameters.chunk_size;
         debug!("combining chunk from {} to {}", start, end);
         let span = info_span!("batch", start, end);
         let _enter = span.enter();
@@ -836,85 +867,106 @@ pub fn contribute<E: PairingEngine>(
         beta_g2.write_element(&beta_g2_el, compressed_output)?;
     }
 
-    let start = parameters.chunk_index * parameters.batch_size;
-    let end = (parameters.chunk_index + 1) * parameters.batch_size;
-    let (g1_els_in_chunk, other_els_in_chunk) = parameters.chunk_element_sizes();
-    // load `batch_size` chunks on each iteration and perform the transformation
-    debug!("contributing to chunk from {} to {}", start, end);
-    let span = info_span!("batch", start, end);
-    let _enter = span.enter();
-    rayon::scope(|t| {
+    iter_chunk(&parameters, |start, end| {
+        let (start_chunk, end_chunk) = match parameters.contribution_mode {
+            ContributionMode::Chunked => (
+                start - parameters.chunk_index * parameters.chunk_size,
+                end - parameters.chunk_index * parameters.chunk_size,
+            ),
+            ContributionMode::Full => (start, end),
+        };
+        // load `batch_size` chunks on each iteration and perform the transformation
+        debug!("contributing to chunk from {} to {}", start, end);
+        let span = info_span!("batch", start, end);
         let _enter = span.enter();
-        t.spawn(|_| {
+        rayon::scope(|t| {
             let _enter = span.enter();
-            // generate powers from `start` to `end` (e.g. [0,4) then [4, 8) etc.)
-            let powers = generate_powers_of_tau::<E>(&key.tau, start, end);
-            trace!("generated powers of tau");
-
-            // raise each element from the input buffer to the powers of tau
-            // and write the updated value (without allocating) to the
-            // output buffer
-            rayon::scope(|t| {
+            t.spawn(|_| {
                 let _enter = span.enter();
-                t.spawn(|_| {
+                // generate powers from `start` to `end` (e.g. [0,4) then [4, 8) etc.)
+                let powers = generate_powers_of_tau::<E>(&key.tau, start, end);
+                trace!("generated powers of tau");
+
+                // raise each element from the input buffer to the powers of tau
+                // and write the updated value (without allocating) to the
+                // output buffer
+                rayon::scope(|t| {
                     let _enter = span.enter();
-                    apply_powers::<E::G1Affine>(
-                        (tau_g1, compressed_output),
-                        (in_tau_g1, compressed_input, check_input_for_correctness),
-                        (0, g1_els_in_chunk),
-                        &powers,
-                        None,
-                    )
-                    .expect("could not apply powers of tau to the TauG1 elements");
-                    trace!("applied powers to tau g1 elements");
-                });
-                if other_els_in_chunk > 0 {
-                    rayon::scope(|t| {
+                    t.spawn(|_| {
                         let _enter = span.enter();
-                        t.spawn(|_| {
-                            let _enter = span.enter();
-                            apply_powers::<E::G2Affine>(
-                                (tau_g2, compressed_output),
-                                (in_tau_g2, compressed_input, check_input_for_correctness),
-                                (0, other_els_in_chunk),
-                                &powers,
-                                None,
-                            )
-                            .expect("could not apply powers of tau to the TauG2 elements");
-                            trace!("applied powers to tau g2 elements");
-                        });
-                        t.spawn(|_| {
-                            let _enter = span.enter();
-                            apply_powers::<E::G1Affine>(
-                                (alpha_g1, compressed_output),
-                                (in_alpha_g1, compressed_input, check_input_for_correctness),
-                                (0, other_els_in_chunk),
-                                &powers,
-                                Some(&key.alpha),
-                            )
-                            .expect("could not apply powers of tau to the AlphaG1 elements");
-                            trace!("applied powers to alpha g1 elements");
-                        });
-                        t.spawn(|_| {
-                            let _enter = span.enter();
-                            apply_powers::<E::G1Affine>(
-                                (beta_g1, compressed_output),
-                                (in_beta_g1, compressed_input, check_input_for_correctness),
-                                (0, other_els_in_chunk),
-                                &powers,
-                                Some(&key.beta),
-                            )
-                            .expect("could not apply powers of tau to the BetaG1 elements");
-                            trace!("applied powers to beta g1 elements");
-                        });
+                        apply_powers::<E::G1Affine>(
+                            (tau_g1, compressed_output),
+                            (in_tau_g1, compressed_input, check_input_for_correctness),
+                            (start_chunk, end_chunk),
+                            &powers,
+                            None,
+                        )
+                        .expect("could not apply powers of tau to the TauG1 elements");
+                        trace!("applied powers to tau g1 elements");
                     });
-                }
+                    if start < parameters.powers_length {
+                        let end = if start + parameters.batch_size > parameters.powers_length {
+                            parameters.powers_length
+                        } else {
+                            end
+                        };
+                        let (start_chunk, end_chunk) = match parameters.contribution_mode {
+                            ContributionMode::Chunked => (
+                                start - parameters.chunk_index * parameters.chunk_size,
+                                end - parameters.chunk_index * parameters.chunk_size,
+                            ),
+                            ContributionMode::Full => (start, end),
+                        };
+                        rayon::scope(|t| {
+                            let _enter = span.enter();
+                            t.spawn(|_| {
+                                let _enter = span.enter();
+                                apply_powers::<E::G2Affine>(
+                                    (tau_g2, compressed_output),
+                                    (in_tau_g2, compressed_input, check_input_for_correctness),
+                                    (start_chunk, end_chunk),
+                                    &powers,
+                                    None,
+                                )
+                                .expect("could not apply powers of tau to the TauG2 elements");
+                                trace!("applied powers to tau g2 elements");
+                            });
+                            t.spawn(|_| {
+                                let _enter = span.enter();
+                                apply_powers::<E::G1Affine>(
+                                    (alpha_g1, compressed_output),
+                                    (in_alpha_g1, compressed_input, check_input_for_correctness),
+                                    (start_chunk, end_chunk),
+                                    &powers,
+                                    Some(&key.alpha),
+                                )
+                                .expect("could not apply powers of tau to the AlphaG1 elements");
+                                trace!("applied powers to alpha g1 elements");
+                            });
+                            t.spawn(|_| {
+                                let _enter = span.enter();
+                                apply_powers::<E::G1Affine>(
+                                    (beta_g1, compressed_output),
+                                    (in_beta_g1, compressed_input, check_input_for_correctness),
+                                    (start_chunk, end_chunk),
+                                    &powers,
+                                    Some(&key.beta),
+                                )
+                                .expect("could not apply powers of tau to the BetaG1 elements");
+                                trace!("applied powers to beta g1 elements");
+                            });
+                        });
+                    }
+                });
             });
         });
-    });
 
-    debug!("chunk contribution successful");
-    info!("done");
+        debug!("batch contribution successful");
+
+        Ok(())
+    })?;
+
+    info!("done contributing");
 
     Ok(())
 }
@@ -1039,7 +1091,7 @@ fn split_at_chunk_mut<'a, E: PairingEngine>(
         } else {
             g1_els_in_chunk
         };
-        let start = parameters.chunk_index * parameters.batch_size * element_size;
+        let start = parameters.chunk_index * parameters.chunk_size * element_size;
         let end = start + els_in_chunk * element_size;
         &mut buf[start..end]
     };

@@ -4,15 +4,16 @@ pub use new_challenge::new_challenge;
 mod contribute;
 pub use contribute::contribute;
 
-mod transform;
-pub use transform::transform;
+mod transform_pok_and_correctness;
+pub use transform_pok_and_correctness::transform_pok_and_correctness;
 
-mod transform_full;
-pub use transform_full::transform_full;
+mod transform_ratios;
+pub use transform_ratios::transform_ratios;
 
 mod combine;
 pub use combine::combine;
 
+use crate::parameters::ContributionMode;
 use gumdrop::Options;
 use std::default::Default;
 
@@ -21,6 +22,7 @@ pub enum CurveKind {
     Bls12_381,
     Bls12_377,
     BW6,
+    Bn254,
 }
 
 #[derive(Debug, Clone)]
@@ -33,8 +35,16 @@ pub struct PowersOfTauOpts {
     help: bool,
     #[options(help = "the seed to derive private elements from")]
     pub seed: String,
+    #[options(
+        help = "the contribution mode",
+        default = "full",
+        parse(try_from_str = "contribution_mode_from_str")
+    )]
+    pub contribution_mode: ContributionMode,
     #[options(help = "the chunk index to process")]
     pub chunk_index: usize,
+    #[options(help = "the chunk size")]
+    pub chunk_size: usize,
     #[options(
         help = "the elliptic curve to use",
         default = "bls12_381",
@@ -76,12 +86,12 @@ pub enum Command {
     #[options(
         help = "verify the contributions so far and generate a new challenge, for a single chunk"
     )]
-    VerifyAndTransformChunk(VerifyAndTransformOpts),
+    VerifyAndTransformPokAndCorrectness(VerifyPokAndCorrectnessOpts),
     // this receives a challenge + response file, verifies it and generates a new challenge, for a full contribution.
     #[options(
         help = "verify the contributions so far and generate a new challenge, for a full contribution"
     )]
-    VerifyAndTransformFull(VerifyFullOpts),
+    VerifyAndTransformRatios(VerifyRatiosOpts),
     // this receives a list of chunked reponses and combines them into a single response.
     #[options(
         help = "receive a list of chunked reponses and combines them into a single response"
@@ -108,7 +118,7 @@ pub struct ContributeOpts {
 }
 
 #[derive(Debug, Options, Clone)]
-pub struct VerifyAndTransformOpts {
+pub struct VerifyPokAndCorrectnessOpts {
     help: bool,
     #[options(help = "the provided challenge file", default = "challenge")]
     pub challenge_fname: String,
@@ -125,7 +135,7 @@ pub struct VerifyAndTransformOpts {
 }
 
 #[derive(Debug, Options, Clone)]
-pub struct VerifyFullOpts {
+pub struct VerifyRatiosOpts {
     help: bool,
     #[options(
         help = "the provided response file which will be verified",
@@ -151,6 +161,7 @@ pub fn curve_from_str(src: &str) -> Result<CurveKind, String> {
         "bls12_381" => CurveKind::Bls12_381,
         "bls12_377" => CurveKind::Bls12_377,
         "bw6" => CurveKind::BW6,
+        "bn254" => CurveKind::Bn254,
         _ => return Err("unsupported curve.".to_string()),
     };
     Ok(curve)
@@ -162,4 +173,17 @@ pub fn proving_system_from_str(src: &str) -> Result<ProvingSystem, String> {
         _ => return Err("unsupported proving system. Currently supported: groth16".to_string()),
     };
     Ok(system)
+}
+
+pub fn contribution_mode_from_str(src: &str) -> Result<ContributionMode, String> {
+    let mode = match src.to_lowercase().as_str() {
+        "full" => ContributionMode::Full,
+        "chunked" => ContributionMode::Chunked,
+        _ => {
+            return Err(
+                "unsupported contribution mode. Currently supported: full, chunked".to_string(),
+            )
+        }
+    };
+    Ok(mode)
 }

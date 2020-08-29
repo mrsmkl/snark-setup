@@ -1,7 +1,7 @@
 use gumdrop::Options;
 use powersoftau::cli_common::{
-    combine, contribute, new_challenge, transform, transform_full, Command, CurveKind,
-    PowersOfTauOpts,
+    combine, contribute, new_challenge, transform_pok_and_correctness, transform_ratios, Command,
+    CurveKind, PowersOfTauOpts,
 };
 use powersoftau::parameters::CeremonyParams;
 use snark_utils::{beacon_randomness, derive_rng_from_seed};
@@ -12,7 +12,7 @@ use tracing_subscriber::{
     filter::EnvFilter,
     fmt::{time::ChronoUtc, Subscriber},
 };
-use zexe_algebra::{Bls12_377, Bls12_381, PairingEngine as Engine, BW6_761};
+use zexe_algebra::{Bls12_377, Bls12_381, Bn254, PairingEngine as Engine, BW6_761};
 
 #[macro_use]
 extern crate hex_literal;
@@ -30,11 +30,18 @@ fn main() {
         CurveKind::Bls12_381 => execute_cmd::<Bls12_381>(opts),
         CurveKind::Bls12_377 => execute_cmd::<Bls12_377>(opts),
         CurveKind::BW6 => execute_cmd::<BW6_761>(opts),
+        CurveKind::Bn254 => execute_cmd::<Bn254>(opts),
     };
 }
 
 fn execute_cmd<E: Engine>(opts: PowersOfTauOpts) {
-    let parameters = CeremonyParams::<E>::new(opts.chunk_index, opts.power, opts.batch_size);
+    let parameters = CeremonyParams::<E>::new(
+        opts.contribution_mode,
+        opts.chunk_index,
+        opts.chunk_size,
+        opts.power,
+        opts.batch_size,
+    );
 
     let command = opts.clone().command.unwrap_or_else(|| {
         eprintln!("No command was provided.");
@@ -61,18 +68,18 @@ fn execute_cmd<E: Engine>(opts: PowersOfTauOpts) {
             let rng = derive_rng_from_seed(&beacon_randomness(beacon_hash));
             contribute(&opt.challenge_fname, &opt.response_fname, &parameters, rng);
         }
-        Command::VerifyAndTransformChunk(opt) => {
+        Command::VerifyAndTransformPokAndCorrectness(opt) => {
             // we receive a previous participation, verify it, and generate a new challenge from it
-            transform(
+            transform_pok_and_correctness(
                 &opt.challenge_fname,
                 &opt.response_fname,
                 &opt.new_challenge_fname,
                 &parameters,
             );
         }
-        Command::VerifyAndTransformFull(opt) => {
+        Command::VerifyAndTransformRatios(opt) => {
             // we receive a previous participation, verify it, and generate a new challenge from it
-            transform_full(&opt.response_fname, &parameters);
+            transform_ratios(&opt.response_fname, &parameters);
         }
         Command::Combine(opt) => {
             combine(&opt.response_list_fname, &opt.combined_fname, &parameters);

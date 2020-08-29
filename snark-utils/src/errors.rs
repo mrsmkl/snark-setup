@@ -30,6 +30,8 @@ pub enum Error {
     CrossBeamError,
     #[error("Got point not in the prime order subgroup")]
     IncorrectSubgroup,
+    #[error("Got invalid decompression parameters")]
+    InvalidDecompressionParametersError,
 }
 
 impl From<Box<dyn std::any::Any + Send>> for Error {

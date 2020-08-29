@@ -75,7 +75,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
 
     /// Verifies a transformation of the `Accumulator` with the `PublicKey`, given a 64-byte transcript `digest`.
     #[allow(clippy::too_many_arguments, clippy::cognitive_complexity)]
-    pub fn verify_transformation_chunk(
+    pub fn verify_transformation_pok_and_correctness(
         input: &[u8],
         output: &[u8],
         key: &PublicKey<E>,
@@ -86,7 +86,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         check_output_for_correctness: CheckForCorrectness,
         parameters: &'a CeremonyParams<E>,
     ) -> Result<()> {
-        raw_accumulator::verify_chunk(
+        raw_accumulator::verify_pok_and_correctness(
             (input, input_is_compressed, check_input_for_correctness),
             (output, output_is_compressed, check_output_for_correctness),
             key,
@@ -98,13 +98,13 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
 
     /// Verifies a transformation of the `Accumulator` with the `PublicKey`, given a 64-byte transcript `digest`.
     #[allow(clippy::too_many_arguments, clippy::cognitive_complexity)]
-    pub fn verify_transformation_full(
+    pub fn verify_transformation_ratios(
         output: &[u8],
         output_is_compressed: UseCompression,
         check_output_for_correctness: CheckForCorrectness,
         parameters: &'a CeremonyParams<E>,
     ) -> Result<()> {
-        raw_accumulator::verify_full(
+        raw_accumulator::verify_ratios(
             (output, output_is_compressed, check_output_for_correctness),
             parameters,
         )?;
@@ -189,7 +189,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::raw::raw_accumulator::{combine, verify_full};
+    use crate::raw::raw_accumulator::{combine, verify_ratios};
     use rand::thread_rng;
     use snark_utils::{batch_exp, calculate_hash, derive_rng_from_seed, generate_powers_of_tau};
     use test_helpers::{random_point, random_point_vec};
@@ -267,7 +267,7 @@ mod tests {
             &mut output,
             compressed_input,
             compressed_output,
-            CheckForCorrectness::Yes,
+            CheckForCorrectness::Both,
             &privkey,
             &parameters,
         )
@@ -346,7 +346,7 @@ mod tests {
 
         for chunk_index in 0..num_chunks {
             let parameters = CeremonyParams::<E>::new(chunk_index, powers, batch);
-            let correctness = CheckForCorrectness::Yes;
+            let correctness = CheckForCorrectness::Both;
 
             // allocate the input/output vectors
             let (input, _) = generate_input(&parameters, compressed_input);
@@ -365,7 +365,7 @@ mod tests {
                 &mut output,
                 compressed_input,
                 compressed_output,
-                CheckForCorrectness::Yes,
+                CheckForCorrectness::Both,
                 &privkey,
                 &parameters,
             )
@@ -373,7 +373,7 @@ mod tests {
             // ensure that the key is not available to the verifier
             drop(privkey);
 
-            let res = BatchedAccumulator::verify_transformation_chunk(
+            let res = BatchedAccumulator::verify_transformation_pok_and_correctness(
                 &input,
                 &output,
                 &pubkey,
@@ -402,7 +402,7 @@ mod tests {
                 &mut output_2,
                 compressed_output,
                 compressed_output,
-                CheckForCorrectness::Yes,
+                CheckForCorrectness::Both,
                 &privkey,
                 &parameters,
             )
@@ -410,7 +410,7 @@ mod tests {
             // ensure that the key is not available to the verifier
             drop(privkey);
 
-            let res = BatchedAccumulator::verify_transformation_chunk(
+            let res = BatchedAccumulator::verify_transformation_pok_and_correctness(
                 &output,
                 &output_2,
                 &pubkey,
@@ -425,7 +425,7 @@ mod tests {
 
             if parameters.chunk_index == 0 {
                 // verification will fail if the old hash is used
-                let res = BatchedAccumulator::verify_transformation_chunk(
+                let res = BatchedAccumulator::verify_transformation_pok_and_correctness(
                     &output,
                     &output_2,
                     &pubkey,
@@ -531,7 +531,7 @@ mod tests {
 
         for chunk_index in 0..num_chunks {
             let parameters = CeremonyParams::<E>::new(chunk_index, powers, batch);
-            let correctness = CheckForCorrectness::Yes;
+            let correctness = CheckForCorrectness::Both;
 
             // allocate the input/output vectors
             let (input, _) = generate_input(&parameters, compressed_input);
@@ -550,7 +550,7 @@ mod tests {
                 &mut output,
                 compressed_input,
                 compressed_output,
-                CheckForCorrectness::Yes,
+                CheckForCorrectness::Both,
                 &privkey,
                 &parameters,
             )
@@ -558,7 +558,7 @@ mod tests {
             // ensure that the key is not available to the verifier
             drop(privkey);
 
-            let res = BatchedAccumulator::verify_transformation_chunk(
+            let res = BatchedAccumulator::verify_transformation_pok_and_correctness(
                 &input,
                 &output,
                 &pubkey,
@@ -587,7 +587,7 @@ mod tests {
                 &mut output_2,
                 compressed_output,
                 compressed_output,
-                CheckForCorrectness::Yes,
+                CheckForCorrectness::Both,
                 &privkey,
                 &parameters,
             )
@@ -606,7 +606,7 @@ mod tests {
                 chunks_participant_2.push(output_2.clone());
             }
 
-            let res = BatchedAccumulator::verify_transformation_chunk(
+            let res = BatchedAccumulator::verify_transformation_pok_and_correctness(
                 &output,
                 &output_2,
                 &pubkey,
@@ -621,7 +621,7 @@ mod tests {
 
             if parameters.chunk_index == 0 {
                 // verification will fail if the old hash is used
-                let res = BatchedAccumulator::verify_transformation_chunk(
+                let res = BatchedAccumulator::verify_transformation_pok_and_correctness(
                     &output,
                     &output_2,
                     &pubkey,
@@ -651,7 +651,7 @@ mod tests {
             &parameters,
         )
         .unwrap();
-        verify_full(
+        verify_ratios(
             (&mut output, compressed_output, CheckForCorrectness::No),
             &parameters,
         )
@@ -670,7 +670,7 @@ mod tests {
         let mut output = generate_output(&parameters, UseCompression::No);
 
         // decompress the input to the output
-        BatchedAccumulator::decompress(&input, &mut output, CheckForCorrectness::Yes, &parameters)
+        BatchedAccumulator::decompress(&input, &mut output, CheckForCorrectness::Both, &parameters)
             .unwrap();
 
         // deserializes the decompressed output
@@ -720,19 +720,19 @@ mod tests {
 
         assert_eq!(
             deserialized.tau_powers_g1,
-            vec![g1_zero; parameters.batch_size]
+            vec![g1_zero; parameters.chunk_size]
         );
         assert_eq!(
             deserialized.tau_powers_g2,
-            vec![g2_zero; parameters.batch_size]
+            vec![g2_zero; parameters.chunk_size]
         );
         assert_eq!(
             deserialized.alpha_tau_powers_g1,
-            vec![g1_zero; parameters.batch_size]
+            vec![g1_zero; parameters.chunk_size]
         );
         assert_eq!(
             deserialized.beta_tau_powers_g1,
-            vec![g1_zero; parameters.batch_size]
+            vec![g1_zero; parameters.chunk_size]
         );
         assert_eq!(deserialized.beta_g2, g2_zero);
     }

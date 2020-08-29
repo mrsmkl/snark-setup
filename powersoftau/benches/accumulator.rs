@@ -58,7 +58,7 @@ fn contribute_benchmark(c: &mut Criterion) {
                         &mut output,
                         in_compressed,
                         out_compressed,
-                        CheckForCorrectness::Yes,
+                        CheckForCorrectness::Both,
                         &privkey,
                         &parameters,
                     )
@@ -101,7 +101,7 @@ fn verify_benchmark(c: &mut Criterion) {
                 &power,
                 |b, _power| {
                     b.iter(|| {
-                        RawAccumulator::verify_transformation_chunk(
+                        RawAccumulator::verify_transformation_pok_and_correctness(
                             &input,
                             &output,
                             &pubkey,

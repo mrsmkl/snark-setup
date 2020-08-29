@@ -14,9 +14,9 @@ crate-type = ["cdylib", "lib"]
 
 [dependencies]
 snark-utils = { path = "../snark-utils" }
-zexe_algebra = { git = "https://github.com/scipr-lab/zexe", package = "algebra", version = "0.1.0", features = ["parallel", "full"] }
-zexe_groth16 = { git = "https://github.com/scipr-lab/zexe", package = "groth16", version = "0.1.0", features = ["parallel"] }
-zexe_r1cs_core = { git = "https://github.com/scipr-lab/zexe", package = "r1cs-core", version = "0.1.0" }
+zexe_algebra = { git = "https://github.com/scipr-lab/zexe", package = "algebra", rev = "38b6f6f2c6b9a6a1b5e8eb90b1287c98b06520d1", features = ["parallel", "full"] }
+zexe_groth16 = { git = "https://github.com/scipr-lab/zexe", package = "groth16", rev = "38b6f6f2c6b9a6a1b5e8eb90b1287c98b06520d1", features = ["parallel"] }
+zexe_r1cs_core = { git = "https://github.com/scipr-lab/zexe", package = "r1cs-core", rev = "38b6f6f2c6b9a6a1b5e8eb90b1287c98b06520d1" }
 
 
 rand = "0.7.3"
@@ -30,5 +30,5 @@ tracing = "0.1.13"
 [dev-dependencies]
 powersoftau = { path = "../powersoftau" }
 test-helpers = { path = "../test-helpers" }
-zexe_r1cs_std = { git = "https://github.com/scipr-lab/zexe", package = "r1cs-std", version = "0.1.0" }
+zexe_r1cs_std = { git = "https://github.com/scipr-lab/zexe", package = "r1cs-std", rev = "38b6f6f2c6b9a6a1b5e8eb90b1287c98b06520d1" }
 tracing-subscriber = "0.2.3"

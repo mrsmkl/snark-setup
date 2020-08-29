@@ -47,9 +47,13 @@ pub fn generate_input<E: PairingEngine>(
     BatchedAccumulator::generate_initial(&mut output, compressed, &parameters).unwrap();
     let mut input = vec![0; len];
     input.copy_from_slice(&output);
-    let before =
-        BatchedAccumulator::deserialize(&output, compressed, CheckForCorrectness::Yes, &parameters)
-            .unwrap();
+    let before = BatchedAccumulator::deserialize(
+        &output,
+        compressed,
+        CheckForCorrectness::Both,
+        &parameters,
+    )
+    .unwrap();
     (input, before)
 }
 

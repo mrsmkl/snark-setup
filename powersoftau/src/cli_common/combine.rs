@@ -23,7 +23,11 @@ pub fn combine<T: Engine + Sync>(
     );
     for (chunk_index, line) in response_list_reader.lines().enumerate() {
         let line = line.expect("should have read line");
-        let parameters = parameters.specialize_to_chunk(chunk_index);
+        let parameters = parameters.specialize_to_chunk(
+            parameters.contribution_mode,
+            chunk_index,
+            parameters.chunk_size,
+        );
         let response_reader = OpenOptions::new()
             .read(true)
             .open(line)
@@ -54,14 +58,21 @@ pub fn combine<T: Engine + Sync>(
         }
     }
 
-    let parameters_for_output =
-        CeremonyParams::<T>::new(0, parameters.size, parameters.powers_g1_length);
+    let parameters_for_output = CeremonyParams::<T>::new(
+        parameters.contribution_mode,
+        0,
+        parameters.powers_g1_length,
+        parameters.size,
+        parameters.batch_size,
+    );
     let writer = OpenOptions::new()
         .read(true)
         .write(true)
         .create_new(true)
         .open(combined_filename)
         .expect("unable to create new combined file in this directory");
+
+    println!("parameters for output: {:?}", parameters_for_output);
 
     writer
         .set_len(
@@ -75,7 +86,13 @@ pub fn combine<T: Engine + Sync>(
             .expect("unable to create a memory map for output")
     };
 
-    let parameters = CeremonyParams::<T>::new(0, parameters.size, parameters.batch_size);
+    let parameters = CeremonyParams::<T>::new(
+        parameters.contribution_mode,
+        0,
+        parameters.chunk_size,
+        parameters.size,
+        parameters.batch_size,
+    );
     let res = BatchedAccumulator::combine(
         readers
             .iter()
