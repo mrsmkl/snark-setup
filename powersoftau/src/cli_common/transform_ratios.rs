@@ -1,4 +1,3 @@
-use crate::parameters::ContributionMode;
 use crate::{batched_accumulator::BatchedAccumulator, parameters::CeremonyParams};
 use memmap::*;
 use snark_utils::{calculate_hash, print_hash, CheckForCorrectness, UseCompression};
@@ -28,10 +27,7 @@ pub fn transform_ratios<T: Engine + Sync>(response_filename: &str, parameters: &
         let metadata = response_reader
             .metadata()
             .expect("unable to get filesystem metadata for response file");
-        let expected_response_length = match parameters.contribution_mode {
-            ContributionMode::Chunked => parameters.accumulator_size - parameters.hash_size,
-            ContributionMode::Full => parameters.accumulator_size,
-        };
+        let expected_response_length = parameters.accumulator_size;
         if metadata.len() != (expected_response_length as u64) {
             panic!(
                 "The size of response file should be {}, but it's {}, so something isn't right.",

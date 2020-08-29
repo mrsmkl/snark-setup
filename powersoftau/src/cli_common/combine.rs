@@ -75,9 +75,7 @@ pub fn combine<T: Engine + Sync>(
     println!("parameters for output: {:?}", parameters_for_output);
 
     writer
-        .set_len(
-            parameters_for_output.accumulator_size as u64 - parameters_for_output.hash_size as u64,
-        )
+        .set_len(parameters_for_output.accumulator_size as u64)
         .expect("must make output file large enough");
 
     let mut writable_map = unsafe {

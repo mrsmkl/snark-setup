@@ -4,7 +4,7 @@ use powersoftau::cli_common::{
     CurveKind, PowersOfTauOpts,
 };
 use powersoftau::parameters::CeremonyParams;
-use snark_utils::{beacon_randomness, derive_rng_from_seed};
+use snark_utils::{beacon_randomness, derive_rng_from_seed, from_slice};
 
 use std::process;
 use std::time::Instant;
@@ -13,9 +13,6 @@ use tracing_subscriber::{
     fmt::{time::ChronoUtc, Subscriber},
 };
 use zexe_algebra::{Bls12_377, Bls12_381, Bn254, PairingEngine as Engine, BW6_761};
-
-#[macro_use]
-extern crate hex_literal;
 
 fn main() {
     Subscriber::builder()
@@ -63,9 +60,9 @@ fn execute_cmd<E: Engine>(opts: PowersOfTauOpts) {
         Command::Beacon(opt) => {
             // use the beacon's randomness
             // Place block hash here (block number #564321)
-            let beacon_hash: [u8; 32] =
-                hex!("0000000000000000000a558a61ddc8ee4e488d647a747fe4dcc362fe2026c620");
-            let rng = derive_rng_from_seed(&beacon_randomness(beacon_hash));
+            let beacon_hash =
+                hex::decode(&opt.beacon_hash).expect("could not hex decode beacon hash");
+            let rng = derive_rng_from_seed(&beacon_randomness(from_slice(&beacon_hash)));
             contribute(&opt.challenge_fname, &opt.response_fname, &parameters, rng);
         }
         Command::VerifyAndTransformPokAndCorrectness(opt) => {

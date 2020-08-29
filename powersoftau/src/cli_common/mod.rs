@@ -115,6 +115,11 @@ pub struct ContributeOpts {
     pub challenge_fname: String,
     #[options(help = "the response file which will be generated")]
     pub response_fname: String,
+    #[options(
+        help = "the beacon hash to be used if running a beacon contribution",
+        default = "0000000000000000000a558a61ddc8ee4e488d647a747fe4dcc362fe2026c620"
+    )]
+    pub beacon_hash: String,
 }
 
 #[derive(Debug, Options, Clone)]

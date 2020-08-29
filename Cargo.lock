@@ -860,7 +860,6 @@ dependencies = [
  "criterion",
  "gumdrop",
  "hex 0.4.2",
- "hex-literal",
  "itertools 0.8.2",
  "memmap",
  "rand 0.7.3",

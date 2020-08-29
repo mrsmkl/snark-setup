@@ -15,5 +15,7 @@ powersoftau="cargo run --release --bin powersoftau -- --curve-kind $CURVE --batc
 $powersoftau new --challenge-fname challenge
 yes | $powersoftau contribute --challenge-fname challenge --response-fname response
 $powersoftau verify-and-transform-pok-and-correctness --challenge-fname challenge --response-fname response --new-challenge-fname new_challenge
-$powersoftau verify-and-transform-ratios --response-fname new_challenge
+$powersoftau beacon --challenge-fname new_challenge --response-fname new_response --beacon-hash 0000000000000000000a558a61ddc8ee4e488d647a747fe4dcc362fe2026c620
+$powersoftau verify-and-transform-pok-and-correctness --challenge-fname new_challenge --response-fname new_response --new-challenge-fname new_challenge_2
+$powersoftau verify-and-transform-ratios --response-fname new_challenge_2
 
