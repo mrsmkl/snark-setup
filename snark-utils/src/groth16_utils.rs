@@ -320,7 +320,7 @@ mod tests {
         compressed: UseCompression,
     ) {
         let batch = ((1 << powers) << 1) - 1;
-        let params = CeremonyParams::<E>::new_for_first_chunk(powers, batch);
+        let params = CeremonyParams::<E>::new_full(powers, batch);
         let (_, output, _, _) = setup_verify(compressed, compressed, &params);
         let accumulator =
             BatchedAccumulator::deserialize(&output, compressed, CheckForCorrectness::No, &params)
@@ -392,6 +392,8 @@ mod tests {
     fn compat_correctness(check_for_correctness: CheckForCorrectness) -> CheckForCorrectnessV1 {
         match check_for_correctness {
             CheckForCorrectness::Both => CheckForCorrectnessV1::Both,
+            CheckForCorrectness::OnlyNonZero => CheckForCorrectnessV1::OnlyNonZero,
+            CheckForCorrectness::OnlyInGroup => CheckForCorrectnessV1::OnlyInGroup,
             CheckForCorrectness::No => CheckForCorrectnessV1::No,
         }
     }

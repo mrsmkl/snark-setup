@@ -16,7 +16,7 @@ fn generate_initial_benchmark(c: &mut Criterion) {
             if power > 8 {
                 group.sample_size(10);
             }
-            let parameters = CeremonyParams::<Bls12_377>::new_for_first_chunk(power, power);
+            let parameters = CeremonyParams::<Bls12_377>::new_full(power, power);
             let expected_challenge_length = parameters.get_length(*compression);
 
             // count in `other` powers (G1 will be 2x that)
@@ -39,7 +39,7 @@ fn contribute_benchmark(c: &mut Criterion) {
 
     // we gather data on various sizes
     for size in 4..8 {
-        let parameters = CeremonyParams::<Bls12_377>::new_for_first_chunk(size, batch);
+        let parameters = CeremonyParams::<Bls12_377>::new_full(size, batch);
         let (input, _) = generate_input(&parameters, in_compressed);
         let mut output = vec![0; parameters.get_length(out_compressed)];
         let current_accumulator_hash = blank_hash();
@@ -91,7 +91,7 @@ fn verify_benchmark(c: &mut Criterion) {
     // Test the benchmark for everything in the parameter space
     for power in powers {
         for (compressed_input, compressed_output) in compression {
-            let parameters = CeremonyParams::<Bls12_377>::new_for_first_chunk(power, batch);
+            let parameters = CeremonyParams::<Bls12_377>::new_full(power, batch);
 
             let (input, output, pubkey, current_accumulator_hash) =
                 setup_verify(*compressed_input, *compressed_output, &parameters);

@@ -97,18 +97,10 @@ pub struct CeremonyParams<E> {
 impl<E: PairingEngine> CeremonyParams<E> {
     /// Constructs a new ceremony parameters object from the type of provided curve
     /// Panics if given batch_size = 0
-    pub fn new_for_first_chunk(size: usize, batch_size: usize) -> Self {
+    pub fn new_full(size: usize, batch_size: usize) -> Self {
         // create the curve
         let curve = CurveParams::<E>::new();
-        //TODO(kobi): meh
-        Self::new_with_curve(
-            ContributionMode::Full,
-            0,
-            batch_size,
-            curve,
-            size,
-            batch_size,
-        )
+        Self::new_with_curve(ContributionMode::Full, 0, 0, curve, size, batch_size)
     }
 
     pub fn new(

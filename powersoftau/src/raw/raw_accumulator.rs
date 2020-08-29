@@ -75,7 +75,7 @@ fn iter_chunk(
                 } // ensure there's overlap between chunks
                 MinMaxResult::OneElement(start) => (
                     start,
-                    if start >= min - 1 {
+                    if start >= max - 1 {
                         start + 1
                     } else {
                         start + 2

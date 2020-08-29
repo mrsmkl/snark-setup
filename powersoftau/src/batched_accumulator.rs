@@ -189,6 +189,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::parameters::ContributionMode;
     use crate::raw::raw_accumulator::{combine, verify_ratios};
     use rand::thread_rng;
     use snark_utils::{batch_exp, calculate_hash, derive_rng_from_seed, generate_powers_of_tau};
@@ -248,7 +249,7 @@ mod tests {
         compressed_input: UseCompression,
         compressed_output: UseCompression,
     ) {
-        let parameters = CeremonyParams::<E>::new_for_first_chunk(powers, batch);
+        let parameters = CeremonyParams::<E>::new_full(powers, batch);
         let expected_response_length = parameters.get_length(compressed_output);
         let (g1_els_in_chunk, other_els_in_chunk) = parameters.chunk_element_sizes();
 
@@ -345,7 +346,13 @@ mod tests {
         let num_chunks = (powers_g1_length + batch - 1) / batch;
 
         for chunk_index in 0..num_chunks {
-            let parameters = CeremonyParams::<E>::new(chunk_index, powers, batch);
+            let parameters = CeremonyParams::<E>::new(
+                ContributionMode::Chunked,
+                chunk_index,
+                batch,
+                powers,
+                batch,
+            );
             let correctness = CheckForCorrectness::Both;
 
             // allocate the input/output vectors
@@ -530,7 +537,13 @@ mod tests {
         let mut chunks_participant_2: Vec<Vec<u8>> = vec![];
 
         for chunk_index in 0..num_chunks {
-            let parameters = CeremonyParams::<E>::new(chunk_index, powers, batch);
+            let parameters = CeremonyParams::<E>::new(
+                ContributionMode::Chunked,
+                chunk_index,
+                batch,
+                powers,
+                batch,
+            );
             let correctness = CheckForCorrectness::Both;
 
             // allocate the input/output vectors
@@ -641,9 +654,8 @@ mod tests {
             .iter()
             .map(|v| (v.as_slice(), compressed_output))
             .collect::<Vec<_>>();
-        let parameters = CeremonyParams::<E>::new(0, powers, powers_g1_length);
+        let parameters = CeremonyParams::<E>::new_full(powers, batch);
         let mut output = generate_output(&parameters, compressed_output);
-        let parameters = CeremonyParams::<E>::new(0, powers, batch);
 
         combine(
             &chunks_participant_2,
@@ -664,7 +676,7 @@ mod tests {
     }
 
     fn test_decompress_curve<E: Engine>() {
-        let parameters = CeremonyParams::<E>::new_for_first_chunk(2, 2);
+        let parameters = CeremonyParams::<E>::new_full(2, 2);
         // generate a random input compressed accumulator
         let (input, before) = generate_random_accumulator(&parameters, UseCompression::Yes);
         let mut output = generate_output(&parameters, UseCompression::No);
@@ -698,7 +710,7 @@ mod tests {
         batch: usize,
         compression: UseCompression,
     ) {
-        let parameters = CeremonyParams::<E>::new_for_first_chunk(powers, batch);
+        let parameters = CeremonyParams::<E>::new_full(powers, batch);
         let expected_challenge_length = match compression {
             UseCompression::Yes => parameters.contribution_size - parameters.public_key_size,
             UseCompression::No => parameters.accumulator_size,
@@ -720,19 +732,19 @@ mod tests {
 
         assert_eq!(
             deserialized.tau_powers_g1,
-            vec![g1_zero; parameters.chunk_size]
+            vec![g1_zero; parameters.powers_g1_length]
         );
         assert_eq!(
             deserialized.tau_powers_g2,
-            vec![g2_zero; parameters.chunk_size]
+            vec![g2_zero; parameters.powers_length]
         );
         assert_eq!(
             deserialized.alpha_tau_powers_g1,
-            vec![g1_zero; parameters.chunk_size]
+            vec![g1_zero; parameters.powers_length]
         );
         assert_eq!(
             deserialized.beta_tau_powers_g1,
-            vec![g1_zero; parameters.chunk_size]
+            vec![g1_zero; parameters.powers_length]
         );
         assert_eq!(deserialized.beta_g2, g2_zero);
     }
@@ -743,7 +755,7 @@ mod tests {
         batch: usize,
     ) {
         // create a small accumulator with some random state
-        let parameters = CeremonyParams::<E>::new_for_first_chunk(size, batch);
+        let parameters = CeremonyParams::<E>::new_full(size, batch);
         let (buffer, accumulator) = generate_random_accumulator(&parameters, compress);
         let deserialized = BatchedAccumulator::deserialize(
             &buffer,
