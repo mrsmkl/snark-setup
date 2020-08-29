@@ -656,13 +656,15 @@ mod tests {
             .collect::<Vec<_>>();
         let parameters = CeremonyParams::<E>::new_full(powers, batch);
         let mut output = generate_output(&parameters, compressed_output);
-
+        let parameters =
+            CeremonyParams::<E>::new(ContributionMode::Chunked, 0, batch, powers, batch);
         combine(
             &chunks_participant_2,
             (&mut output, compressed_output),
             &parameters,
         )
         .unwrap();
+        let parameters = CeremonyParams::<E>::new_full(powers, batch);
         verify_ratios(
             (&mut output, compressed_output, CheckForCorrectness::No),
             &parameters,
