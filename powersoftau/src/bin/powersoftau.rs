@@ -6,8 +6,7 @@ use powersoftau::cli_common::{
 use powersoftau::parameters::CeremonyParams;
 use snark_utils::{beacon_randomness, derive_rng_from_seed, from_slice};
 
-use std::process;
-use std::time::Instant;
+use std::{fs::read_to_string, process, time::Instant};
 use tracing_subscriber::{
     filter::EnvFilter,
     fmt::{time::ChronoUtc, Subscriber},
@@ -53,7 +52,12 @@ fn execute_cmd<E: Engine>(opts: PowersOfTauOpts) {
         }
         Command::Contribute(opt) => {
             // contribute to the randomness
-            let seed = hex::decode(&opts.seed).expect("seed should be a hex string");
+            let seed = hex::decode(
+                &read_to_string(&opts.seed)
+                    .expect("should have read seed")
+                    .trim(),
+            )
+            .expect("seed should be a hex string");
             let rng = derive_rng_from_seed(&seed);
             contribute(&opt.challenge_fname, &opt.response_fname, &parameters, rng);
         }

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-rm -f challenge* response* new_challenge* new_response* new_new_challenge_* processed* initial_ceremony* response_list* combined*
+rm -f challenge* response* new_challenge* new_response* new_new_challenge_* processed* initial_ceremony* response_list* combined* seed*
 
 POWER=10
 BATCH=64
@@ -8,10 +8,12 @@ CHUNK_SIZE=512
 MAX_CHUNK_INDEX=3 # we have 16 chunks, since we have a total of 2^11-1 powers
 CURVE="bw6"
 SEED1=`tr -dc 'A-F0-9' < /dev/urandom | head -c32`
+echo $SEED1 > seed1
 SEED2=`tr -dc 'A-F0-9' < /dev/urandom | head -c32`
+echo $SEED2 > seed2
 
-powersoftau_1="cargo run --release --bin powersoftau -- --curve-kind $CURVE --batch-size $BATCH --contribution-mode chunked --chunk-size $CHUNK_SIZE --power $POWER --seed $SEED1"
-powersoftau_2="cargo run --release --bin powersoftau -- --curve-kind $CURVE --batch-size $BATCH --contribution-mode chunked --chunk-size $CHUNK_SIZE --power $POWER --seed $SEED2"
+powersoftau_1="cargo run --release --bin powersoftau -- --curve-kind $CURVE --batch-size $BATCH --contribution-mode chunked --chunk-size $CHUNK_SIZE --power $POWER --seed seed1"
+powersoftau_2="cargo run --release --bin powersoftau -- --curve-kind $CURVE --batch-size $BATCH --contribution-mode chunked --chunk-size $CHUNK_SIZE --power $POWER --seed seed2"
 powersoftau_combine="cargo run --release --bin powersoftau -- --curve-kind $CURVE --batch-size $BATCH --contribution-mode chunked --chunk-size $CHUNK_SIZE --power $POWER"
 powersoftau_full="cargo run --release --bin powersoftau -- --curve-kind $CURVE --batch-size $BATCH --contribution-mode full --power $POWER"
 
