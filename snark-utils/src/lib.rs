@@ -1,4 +1,3 @@
-#![feature(specialization)]
 //! # SNARK MPC Utils
 //!
 //! Utilities for building MPC Ceremonies for large SNARKs with Zexe.

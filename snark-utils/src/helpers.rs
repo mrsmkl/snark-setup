@@ -1,5 +1,5 @@
 use crate::{
-    errors::{Error, VerificationError},
+    errors::{VerificationError},
     Result,
 };
 use blake2::{digest::generic_array::GenericArray, Blake2b, Digest};
@@ -9,13 +9,13 @@ use rand::{rngs::OsRng, thread_rng, Rng, SeedableRng};
 use rand_chacha::ChaChaRng;
 use std::convert::TryInto;
 use std::io::{self, Write};
-use std::ops::{AddAssign, Mul};
+use std::ops::{AddAssign};
 
 use std::sync::Arc;
 use typenum::consts::U64;
 use zexe_algebra::{
     AffineCurve, BigInteger, CanonicalSerialize, ConstantSerializedSize, Field, One, PairingEngine,
-    PrimeField, ProjectiveCurve, UniformRand, Zero, BatchArithmetic,
+    PrimeField, ProjectiveCurve, UniformRand, Zero, BatchGroupArithmeticSlice,
 };
 
 #[cfg(feature = "parallel")]
@@ -60,83 +60,22 @@ pub fn batch_mul<C: AffineCurve>(bases: &mut [C], coeff: &C::ScalarField) -> Res
     Ok(())
 }
 
-pub trait BatchExp<C: AffineCurve> {
-    fn batch_exp(
-        bases: &mut [C],
-        exps: &[C::ScalarField],
-        coeff: Option<&C::ScalarField>,
-    ) -> Result<()>;
-}
+pub fn batch_exp<C: AffineCurve>(bases: &mut [C], exps: &[C::ScalarField], coeff: Option<&C::ScalarField>) -> Result<()> {
+    let mut powers_vec: Vec<<C::ScalarField as PrimeField>::BigInt> = exps.to_vec()
+        .iter()
+        .map(|s| {
+        let s = &mut match coeff {
+            Some(k) => *s * k,
+            None => *s,
+        };
+        s.into_repr()
+    })
+    .collect();
 
-impl<C: AffineCurve> BatchExp<C> for C {
-    /// Exponentiate a large number of points, with an optional coefficient to be applied to the
-    /// exponent.
-     default fn batch_exp(
-        bases: &mut [C],
-        exps: &[C::ScalarField],
-        coeff: Option<&C::ScalarField>,
-    ) -> Result<()> {
-        println!("Using shitty normal exp!");
-        if bases.len() != exps.len() {
-            return Err(Error::InvalidLength {
-                expected: bases.len(),
-                got: exps.len(),
-            });
-        }
-        // raise the base to the exponent and assign it back to the base
-        // this will return the points as projective
-        let mut points: Vec<_> = cfg_iter_mut!(bases)
-            .zip(exps)
-            .map(|(base, exp)| {
-                // If a coefficient was provided, multiply the exponent
-                // by that coefficient
-                let exp = if let Some(coeff) = coeff {
-                    exp.mul(coeff)
-                } else {
-                    *exp
-                };
+    bases.batch_scalar_mul_in_place::<<C::ScalarField as PrimeField>::BigInt>
+        (&mut powers_vec[..], 3);
 
-                // Raise the base to the exponent (additive notation so it is executed
-                // via a multiplication)
-                base.mul(exp)
-            })
-            .collect();
-        // we do not use Zexe's batch_normalization_into_affine because it allocates
-        // a new vector
-        C::Projective::batch_normalization(&mut points);
-        cfg_iter_mut!(bases)
-            .zip(points)
-            .for_each(|(base, proj)| *base = proj.into_affine());
-
-        Ok(())
-    }
-}
-
-impl<C: AffineCurve> BatchExp<C> for C
-where [C]: BatchArithmetic<C>,
-{
-    fn batch_exp(bases: &mut [C], exps: &[C::ScalarField], coeff: Option<&C::ScalarField>) -> Result<()> {
-        // println!("Using batch exp!");
-        let mut powers_vec: Vec<<C::ScalarField as PrimeField>::BigInt> = exps.to_vec()
-            .iter()
-            .map(|s| {
-            let s = &mut match coeff {
-                Some(k) => *s * k,
-                None => *s,
-            };
-            s.into_repr()
-        })
-        .collect();
-        // println!("Done changing into repr");
-
-        // println!("Batch scalar mul");
-        // calculate the powers
-        bases[..].batch_scalar_mul_in_place::<<C::ScalarField as PrimeField>::BigInt>
-            (2, &mut powers_vec[..]);
-        // println!("Finished batch scalar mul");
-
-        Ok(())
-    }
+    Ok(())
 }
 
 // Create an RNG based on a mixture of system randomness and user provided randomness

@@ -13,7 +13,7 @@ use tracing::{debug, info, info_span, trace};
 
 use rayon::prelude::*;
 
-const INVERSION_BATCH_SIZE: usize = 10000;
+const INVERSION_BATCH_SIZE: usize = 5000;
 
 /// Mutable buffer, compression
 type Output<'a> = (&'a mut [u8], UseCompression);
@@ -653,24 +653,37 @@ fn apply_powers<C: AffineCurve>(
         }
     }).collect();
 
-    println!("Reading");
     let now = std::time::Instant::now();
+    println!("Reading ({:?})", input_compressed);
     // read the input
-    let mut element_batch: Vec<(Vec<C>, (usize, usize))> = ranges.iter().map(|(start, end)| {
-        (input[*start * in_size..*end * in_size].read_batch::<C>(input_compressed).expect("NIL"), (*start, *end))
-    }).collect();
-    println!("Done reading at {:?} us", now.elapsed().as_millis());
+    let elem_blob = input[start * in_size..end * in_size].read_batch::<C>(input_compressed).expect("NIL");
+    println!("Done reading TOTAL at {:?} us", now.elapsed().as_micros());
 
+    let mut element_batch: Vec<(Vec<C>, (usize, usize))> =
+        elem_blob
+        .chunks(INVERSION_BATCH_SIZE)
+        .into_iter()
+        .map(|chunk| chunk.to_vec())
+        .zip(ranges)
+        .collect();
+
+
+    let now = std::time::Instant::now();
     element_batch.par_iter_mut().map(|(elements, (start, end))| {
         // calculate the powers
-        C::batch_exp(&mut elements[..], &powers[..*end - *start], coeff).expect("NIL");
+        batch_exp(&mut elements[..], &powers[..*end - *start], coeff).expect("NIL");
     })
     .collect::<()>();
 
+    println!("Batch exp took {:?} us", now.elapsed().as_micros());
+
+
+    let now = std::time::Instant::now();
     println!("writing");
     for (elements, (start, end)) in element_batch {
         // write back
         output[start * out_size..end * out_size].write_batch(&elements, output_compressed).expect("NIL");
+        println!("Done writing at {:?} us", now.elapsed().as_micros());
     }
     println!("done writing");
 

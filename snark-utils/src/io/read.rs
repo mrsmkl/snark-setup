@@ -81,7 +81,8 @@ impl BatchDeserializer for [u8] {
     fn read_batch<G: AffineCurve>(&self, compression: UseCompression) -> Result<Vec<G>> {
         let size = buffer_size::<G>(compression);
         cfg_chunks!(&*self, size)
-            .map(|mut buf| buf.read_element(compression))
+            .map(|mut buf| {
+                buf.read_element(compression)})
             .collect::<Result<Vec<_>>>()
     }
 

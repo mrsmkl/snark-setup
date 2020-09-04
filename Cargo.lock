@@ -21,16 +21,31 @@ dependencies = [
 [[package]]
 name = "algebra"
 version = "0.1.0"
+dependencies = [
+ "algebra-core 0.1.0",
+]
+
+[[package]]
+name = "algebra"
+version = "0.1.0"
 source = "git+https://github.com/scipr-lab/zexe#bf566aa37d3a97fd14101c337bd4c49fea3b575d"
 dependencies = [
  "algebra-core 0.1.0 (git+https://github.com/scipr-lab/zexe)",
 ]
 
 [[package]]
-name = "algebra"
+name = "algebra-core"
 version = "0.1.0"
 dependencies = [
- "algebra-core 0.1.0",
+ "algebra-core-derive 0.1.0",
+ "derivative",
+ "field-assembly 0.1.0",
+ "itertools 0.9.0",
+ "num-traits",
+ "rand 0.7.3",
+ "rayon",
+ "rustc_version",
+ "unroll",
 ]
 
 [[package]]
@@ -49,23 +64,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "algebra-core"
-version = "0.1.0"
-dependencies = [
- "algebra-core-derive 0.1.0",
- "derivative",
- "field-assembly 0.1.0",
- "num-traits",
- "rand 0.7.3",
- "rayon",
- "rustc_version",
- "unroll",
-]
-
-[[package]]
 name = "algebra-core-derive"
 version = "0.1.0"
-source = "git+https://github.com/scipr-lab/zexe#bf566aa37d3a97fd14101c337bd4c49fea3b575d"
 dependencies = [
  "proc-macro2 1.0.18",
  "quote 1.0.7",
@@ -75,6 +75,7 @@ dependencies = [
 [[package]]
 name = "algebra-core-derive"
 version = "0.1.0"
+source = "git+https://github.com/scipr-lab/zexe#bf566aa37d3a97fd14101c337bd4c49fea3b575d"
 dependencies = [
  "proc-macro2 1.0.18",
  "quote 1.0.7",
@@ -531,6 +532,15 @@ dependencies = [
 [[package]]
 name = "ff-fft"
 version = "0.1.0"
+dependencies = [
+ "algebra-core 0.1.0",
+ "rand 0.7.3",
+ "rayon",
+]
+
+[[package]]
+name = "ff-fft"
+version = "0.1.0"
 source = "git+https://github.com/scipr-lab/zexe#bf566aa37d3a97fd14101c337bd4c49fea3b575d"
 dependencies = [
  "algebra-core 0.1.0 (git+https://github.com/scipr-lab/zexe)",
@@ -539,12 +549,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "ff-fft"
+name = "field-assembly"
 version = "0.1.0"
 dependencies = [
- "algebra-core 0.1.0",
- "rand 0.7.3",
- "rayon",
+ "mince 0.1.0",
 ]
 
 [[package]]
@@ -553,13 +561,6 @@ version = "0.1.0"
 source = "git+https://github.com/scipr-lab/zexe#bf566aa37d3a97fd14101c337bd4c49fea3b575d"
 dependencies = [
  "mince 0.1.0 (git+https://github.com/scipr-lab/zexe)",
-]
-
-[[package]]
-name = "field-assembly"
-version = "0.1.0"
-dependencies = [
- "mince 0.1.0",
 ]
 
 [[package]]
@@ -812,7 +813,6 @@ dependencies = [
 [[package]]
 name = "mince"
 version = "0.1.0"
-source = "git+https://github.com/scipr-lab/zexe#bf566aa37d3a97fd14101c337bd4c49fea3b575d"
 dependencies = [
  "quote 1.0.7",
  "syn 1.0.33",
@@ -821,6 +821,7 @@ dependencies = [
 [[package]]
 name = "mince"
 version = "0.1.0"
+source = "git+https://github.com/scipr-lab/zexe#bf566aa37d3a97fd14101c337bd4c49fea3b575d"
 dependencies = [
  "quote 1.0.7",
  "syn 1.0.33",

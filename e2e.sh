@@ -2,11 +2,11 @@
 
 rm -f challenge* response* new_challenge* processed*
 
-POWER=18
+POWER=16
 NUM_VALIDATORS=100
 NUM_EPOCHS=30
 # Must be multiples of 10,000
-BATCH=128000
+BATCH=1000000
 CURVE="bw6"
 
 powersoftau="cargo +nightly run --release --bin powersoftau -- --curve-kind $CURVE --batch-size $BATCH --power $POWER"
