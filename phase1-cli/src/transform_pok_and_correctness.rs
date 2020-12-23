@@ -165,6 +165,13 @@ pub fn transform_pok_and_correctness<T: Engine + Sync>(
             .expect("unable to write hash to new challenge file");
     }
 
+    /*
+    Phase1::aggregate_verification(
+        (&response_readable_map, COMPRESS_NEW_CHALLENGE, CheckForCorrectness::Full),
+        &parameters,
+    );
+    */
+
     let res = Phase1::verification(
         &challenge_readable_map,
         &response_readable_map,

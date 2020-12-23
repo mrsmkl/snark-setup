@@ -50,6 +50,30 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
             new_challenge_beta_g2,
         ) = split_mut(new_challenge, parameters, compressed_new_challenge);
 
+        let (g1_check, g2_check, g1_alpha_check) = {
+            // Ensure that the initial conditions are correctly formed (first 2 elements)
+            // We allocate a G1 vector of length 2 and re-use it for our G1 elements.
+            // We keep the values of the tau_g1 / tau_g2 elements for later use.
+
+            // Current iteration of tau_g1[0].
+            let after_g1 =
+                read_initial_elements::<E::G1Affine>(tau_g1, compressed_output, check_output_for_correctness)?;
+
+            // Current iteration of tau_g2[0].
+            let after_g2 =
+                read_initial_elements::<E::G2Affine>(tau_g2, compressed_output, check_output_for_correctness)?;
+
+            // Fetch the iteration of alpha_g1[0].
+            let after_alpha_g1 =
+                read_initial_elements::<E::G1Affine>(alpha_g1, compressed_output, check_output_for_correctness)?;
+
+            let g1_check = (after_g1[0], after_g1[1]);
+            let g2_check = (after_g2[0], after_g2[1]);
+            let g1_alpha_check = (after_alpha_g1[0], after_alpha_g1[1]);
+
+            (g1_check, g2_check, g1_alpha_check)
+        };
+
         if parameters.contribution_mode == ContributionMode::Full || parameters.chunk_index == 0 {
             // Run proof of knowledge checks if contribution mode is on full, or this is the first chunk index.
             // Split the input buffer into its components.
@@ -202,6 +226,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                 ),
                 ContributionMode::Full => (start, end),
             };
+            debug!("??? verifying chunk from {} to {}", start, end);
 
             match parameters.proving_system {
                 ProvingSystem::Groth16 => {
@@ -209,10 +234,20 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                         let _enter = span.enter();
 
                         // Process tau_g1 elements.
+                        /*
                         t.spawn(|_| {
                             let _enter = span.enter();
 
                             let mut g1 = vec![E::G1Affine::zero(); parameters.batch_size];
+
+                            debug!("??? groth verifying chunk from {} to {}", start, end);
+                            check_power_ratios::<E>(
+                                (tau_g1, compressed_output, check_output_for_correctness),
+                                (start_chunk, end_chunk),
+                                &mut g1,
+                                &g2_check,
+                            )
+                            .expect("could not check element are non zero and in prime order subgroup");
 
                             check_elements_are_nonzero_and_in_prime_order_subgroup::<E::G1Affine>(
                                 (tau_g1, compressed_output),
@@ -229,6 +264,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
 
                             trace!("tau_g1 verification was successful");
                         });
+                        */
 
                         if start < parameters.powers_length {
                             // If the `end` would be out of bounds, then just process until
@@ -261,6 +297,14 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
 
                                     let mut g2 = vec![E::G2Affine::zero(); parameters.batch_size];
 
+                                    check_power_ratios_g2::<E>(
+                                        (tau_g2, compressed_output, check_output_for_correctness),
+                                        (start_chunk, end_chunk),
+                                        &mut g2[..],
+                                        &g1_check,
+                                    )
+                                    .expect("could not check element are non zero and in prime order subgroup (tau g2)");
+
                                     check_elements_are_nonzero_and_in_prime_order_subgroup::<E::G2Affine>(
                                         (tau_g2, compressed_output),
                                         (start_chunk, end_chunk),
@@ -278,10 +322,18 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                 });
 
                                 // Process alpha_g1 elements.
+                                /*
                                 t.spawn(|_| {
                                     let _enter = span.enter();
 
                                     let mut g1 = vec![E::G1Affine::zero(); parameters.batch_size];
+                                    check_power_ratios::<E>(
+                                        (alpha_g1, compressed_output, CheckForCorrectness::No),
+                                        (start_chunk, end_chunk),
+                                        &mut g1,
+                                        &g2_check,
+                                    )
+                                    .expect("could not check element are non zero and in prime order subgroup (alpha g1)");
 
                                     check_elements_are_nonzero_and_in_prime_order_subgroup::<E::G1Affine>(
                                         (alpha_g1, compressed_output),
@@ -289,7 +341,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                         &mut g1,
                                         subgroup_check_mode,
                                     )
-                                    .expect("could not check element are non zero and in prime order subgroup");
+                                    .expect("could not check element are non zero and in prime order subgroup (alpha g1)");
 
                                     let size = buffer_size::<E::G1Affine>(compressed_new_challenge);
                                     new_challenge_alpha_g1[start_chunk * size..end_chunk * size]
@@ -298,13 +350,22 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
 
                                     trace!("alpha_g1 verification was successful");
                                 });
+                                */
 
                                 // Process beta_g1 elements.
+                                /*
                                 t.spawn(|_| {
                                     let _enter = span.enter();
 
                                     let mut g1 = vec![E::G1Affine::zero(); parameters.batch_size];
 
+                                    check_power_ratios::<E>(
+                                        (beta_g1, compressed_output, check_output_for_correctness),
+                                        (start_chunk, end_chunk),
+                                        &mut g1,
+                                        &g2_check,
+                                    )
+                                    .expect("could not check element are non zero and in prime order subgroup (alpha g1)");
                                     check_elements_are_nonzero_and_in_prime_order_subgroup::<E::G1Affine>(
                                         (beta_g1, compressed_output),
                                         (start_chunk, end_chunk),
@@ -312,7 +373,6 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                         subgroup_check_mode,
                                     )
                                     .expect("could not check element are non zero and in prime order subgroup");
-
                                     let size = buffer_size::<E::G1Affine>(compressed_new_challenge);
                                     new_challenge_beta_g1[start_chunk * size..end_chunk * size]
                                         .write_batch(&mut g1[0..end_chunk - start_chunk], compressed_new_challenge)
@@ -320,6 +380,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
 
                                     trace!("beta_g1 verification was successful");
                                 });
+                                */
                             });
                         }
                     });
@@ -425,7 +486,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
 
         let (tau_g1, tau_g2, alpha_g1, beta_g1, _) = split(output, parameters, compressed_output);
 
-        let (g1_check, g2_check, g1_alpha_check) = {
+        let (g1_check, g2_check, g1_alpha_check, g2_alpha_check) = {
             // Ensure that the initial conditions are correctly formed (first 2 elements)
             // We allocate a G1 vector of length 2 and re-use it for our G1 elements.
             // We keep the values of the tau_g1 / tau_g2 elements for later use.
@@ -445,8 +506,9 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
             let g1_check = (after_g1[0], after_g1[1]);
             let g2_check = (after_g2[0], after_g2[1]);
             let g1_alpha_check = (after_alpha_g1[0], after_alpha_g1[1]);
+            let g2_alpha_check = (after_alpha_g1[0], after_alpha_g1[1]);
 
-            (g1_check, g2_check, g1_alpha_check)
+            (g1_check, g2_check, g1_alpha_check, g2_alpha_check)
         };
 
         debug!("initial elements were computed correctly");
