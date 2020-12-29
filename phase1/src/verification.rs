@@ -232,7 +232,8 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                 ),
                 ContributionMode::Full => (start, end),
             };
-            debug!("??? verifying chunk from {} to {}", start, end);
+            let ratio_check = if end > start + 1 { ratio_checkx } else { false };
+            debug!("??? verifying chunk from {} to {} {}", start, end, ratio_check);
 
             match parameters.proving_system {
                 ProvingSystem::Groth16 => {
