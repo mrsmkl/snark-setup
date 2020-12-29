@@ -95,7 +95,7 @@ cfg_if! {
             elements: &mut [C],
             subgroup_check_mode: SubgroupCheckMode,
         ) -> Result<()> {
-            warn!("??? I'm here {} {}", start, end);
+            // warn!("??? I'm here {} {}", start, end);
             let size = buffer_size::<C>(compression);
             buffer[start * size..end * size].read_batch_preallocated(
                 &mut elements[0..end - start],
@@ -103,7 +103,7 @@ cfg_if! {
                 CheckForCorrectness::OnlyNonZero,
 //                CheckForCorrectness::Full,
             )?;
-            warn!("I'm here {} {}", start, end);
+            // warn!("I'm here {} {}", start, end);
             const SECURITY_PARAM: usize = 128;
             const BATCH_SIZE: usize = 1 << 12;
             let now = std::time::Instant::now();
@@ -118,7 +118,7 @@ cfg_if! {
                     cfg_iter!(elements).enumerate().all(|(i, p)| {
                         let res = p.mul(<<C::ScalarField as PrimeField>::Params as FpParameters>::MODULUS)
                             .is_zero();
-                        warn!("debug {} index {} {}", p, i, res);
+                        // warn!("debug {} index {} {}", p, i, res);
                         if !res {
                             warn!("Wasn't in subgroup {} index {}", p, i)
                         }

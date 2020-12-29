@@ -23,6 +23,7 @@ pub fn transform_pok_and_correctness<T: Engine + Sync>(
     new_challenge_filename: &str,
     new_challenge_hash_filename: &str,
     subgroup_check_mode: SubgroupCheckMode,
+    ratio_check: bool,
     parameters: &Phase1Parameters<T>,
 ) {
     info!(
@@ -165,13 +166,6 @@ pub fn transform_pok_and_correctness<T: Engine + Sync>(
             .expect("unable to write hash to new challenge file");
     }
 
-    /*
-    Phase1::aggregate_verification(
-        (&response_readable_map, COMPRESS_NEW_CHALLENGE, CheckForCorrectness::Full),
-        &parameters,
-    );
-    */
-
     let res = Phase1::verification(
         &challenge_readable_map,
         &response_readable_map,
@@ -184,6 +178,7 @@ pub fn transform_pok_and_correctness<T: Engine + Sync>(
         check_input_correctness,
         check_output_correctness,
         subgroup_check_mode,
+        ratio_check,
         &parameters,
     );
 
