@@ -51,23 +51,33 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
             new_challenge_beta_g2,
         ) = split_mut(new_challenge, parameters, compressed_new_challenge);
 
-        let (g1_check, g2_check) = {
+        let (g1_check, g2_check, ratio_check) = {
             // Ensure that the initial conditions are correctly formed (first 2 elements)
             // We allocate a G1 vector of length 2 and re-use it for our G1 elements.
             // We keep the values of the tau_g1 / tau_g2 elements for later use.
 
-            // Current iteration of tau_g1[0].
-            let after_g1 =
-                read_initial_elements::<E::G1Affine>(tau_g1, compressed_output, check_output_for_correctness)?;
+            println!("range {} {}", tau_g1.len(), tau_g2.len());
 
-            // Current iteration of tau_g2[0].
-            let after_g2 =
-                read_initial_elements::<E::G2Affine>(tau_g2, compressed_output, check_output_for_correctness)?;
+            if tau_g1.len() < 96 || tau_g2.len() < 384 {
+                (
+                    (E::G1Affine::zero(), E::G1Affine::zero()),
+                    (E::G2Affine::zero(), E::G2Affine::zero()),
+                    false,
+                )
+            } else {
+                // Current iteration of tau_g1[0].
+                let after_g1 =
+                    read_initial_elements::<E::G1Affine>(tau_g1, compressed_output, check_output_for_correctness)?;
 
-            let g1_check = (after_g1[0], after_g1[1]);
-            let g2_check = (after_g2[0], after_g2[1]);
+                // Current iteration of tau_g2[0].
+                let after_g2 =
+                    read_initial_elements::<E::G2Affine>(tau_g2, compressed_output, check_output_for_correctness)?;
 
-            (g1_check, g2_check)
+                let g1_check = (after_g1[0], after_g1[1]);
+                let g2_check = (after_g2[0], after_g2[1]);
+
+                (g1_check, g2_check, ratio_check)
+            }
         };
 
         if parameters.contribution_mode == ContributionMode::Full || parameters.chunk_index == 0 {
