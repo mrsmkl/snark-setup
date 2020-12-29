@@ -56,8 +56,6 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
             // We allocate a G1 vector of length 2 and re-use it for our G1 elements.
             // We keep the values of the tau_g1 / tau_g2 elements for later use.
 
-            println!("range {} {}", tau_g1.len(), tau_g2.len());
-
             if tau_g1.len() < 96 || tau_g2.len() < 384 {
                 (
                     (E::G1Affine::zero(), E::G1Affine::zero()),
@@ -232,8 +230,12 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                 ),
                 ContributionMode::Full => (start, end),
             };
-            let ratio_check = if end > start + 1 { ratio_checkx } else { false };
-            debug!("??? verifying chunk from {} to {} {}", start, end, ratio_check);
+            let ratio_check = if end > start + 1 { ratio_check } else { false };
+            debug!(
+                "??? verifying chunk from {} to {} {}",
+                start_chunk, end_chunk, ratio_check
+            );
+            // return Ok(());
 
             match parameters.proving_system {
                 ProvingSystem::Groth16 => {
