@@ -224,7 +224,6 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
             // Load `batch_size` chunks on each iteration and perform the transformation.
 
             debug!("verifying chunk from {} to {}", start, end);
-            println!("verifying chunk from {} to {}", start, end);
 
             let span = info_span!("batch", start, end);
             let _enter = span.enter();

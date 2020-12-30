@@ -41,7 +41,6 @@ pub(crate) fn iter_chunk(
             ContributionMode::Full => (0, upper_bound),
         };
 
-        println!("upper {} min max {} {}", upper_bound, min, max);
         (min, max)
     };
 
