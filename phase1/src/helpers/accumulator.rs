@@ -57,7 +57,6 @@ cfg_if! {
             elements: &mut [E::G1Affine],
             check: &(E::G2Affine, E::G2Affine),
         ) -> Result<()> {
-            warn!("??? power_ratios {} {}", start, end);
             let size = buffer_size::<E::G1Affine>(compression);
             buffer[start * size..end * size].read_batch_preallocated(
                 &mut elements[0..end - start],
@@ -95,15 +94,12 @@ cfg_if! {
             elements: &mut [C],
             subgroup_check_mode: SubgroupCheckMode,
         ) -> Result<()> {
-            // warn!("??? I'm here {} {}", start, end);
             let size = buffer_size::<C>(compression);
             buffer[start * size..end * size].read_batch_preallocated(
                 &mut elements[0..end - start],
                 compression,
                 CheckForCorrectness::OnlyNonZero,
-//                CheckForCorrectness::Full,
             )?;
-            // warn!("I'm here {} {}", start, end);
             const SECURITY_PARAM: usize = 128;
             const BATCH_SIZE: usize = 1 << 12;
             let now = std::time::Instant::now();
@@ -118,7 +114,6 @@ cfg_if! {
                     cfg_iter!(elements).enumerate().all(|(i, p)| {
                         let res = p.mul(<<C::ScalarField as PrimeField>::Params as FpParameters>::MODULUS)
                             .is_zero();
-                        // warn!("debug {} index {} {}", p, i, res);
                         if !res {
                             warn!("Wasn't in subgroup {} index {}", p, i)
                         }
