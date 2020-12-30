@@ -41,6 +41,12 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
 
         info!("starting...");
 
+        /*
+        if parameters.batch_size == parameters.chunk_size {
+            parameters.batch_size = parameters.chunk_size+1
+        }
+        */
+
         // Split the output buffer into its components.
         let (tau_g1, tau_g2, alpha_g1, beta_g1, beta_g2) = split(output, parameters, compressed_output);
         let (
@@ -218,6 +224,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
             // Load `batch_size` chunks on each iteration and perform the transformation.
 
             debug!("verifying chunk from {} to {}", start, end);
+            println!("verifying chunk from {} to {}", start, end);
 
             let span = info_span!("batch", start, end);
             let _enter = span.enter();
@@ -233,6 +240,11 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
 
             // If there's only one element, don't perform ratio check
             let ratio_check = if end > start + 1 { ratio_check } else { false };
+            /*
+            if end <= start + 1 {
+                return Err(Error::InvalidBatchRangeError);
+            };
+            */
 
             match parameters.proving_system {
                 ProvingSystem::Groth16 => {

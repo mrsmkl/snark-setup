@@ -41,6 +41,7 @@ pub(crate) fn iter_chunk(
             ContributionMode::Full => (0, upper_bound),
         };
 
+        println!("upper {} min max {} {}", upper_bound, min, max);
         (min, max)
     };
 
@@ -49,12 +50,26 @@ pub(crate) fn iter_chunk(
         .chunks(parameters.batch_size - 1)
         .into_iter()
         .map(|chunk| {
-            let (start, end) = match chunk.minmax() {
-                MinMaxResult::MinMax(start, end) => (start, if end >= max - 1 { end + 1 } else { end + 2 }), // ensure there's overlap between chunks
-                MinMaxResult::OneElement(start) => (start, if start >= max - 1 { start + 1 } else { start + 2 }),
+            match chunk.minmax() {
+                MinMaxResult::MinMax(start, end) => {
+                    let (start, end) = (start, if end >= max - 1 { end + 1 } else { end + 2 }); // ensure there's overlap between chunks
+                    action(start, end)
+                }
+                // Final element can be ignored because the last one was extended anyway
+                MinMaxResult::OneElement(start) => {
+                    if start >= max - 1 {
+                        if max == min + 1 {
+                            action(start, start + 1)
+                        } else {
+                            Ok(())
+                        }
+                    //                        action(start, start+1)
+                    } else {
+                        action(start, start + 2)
+                    }
+                }
                 _ => return Err(Error::InvalidChunk),
-            };
-            action(start, end)
+            }
         })
         .collect::<Result<_>>()
 }

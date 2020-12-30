@@ -383,6 +383,8 @@ mod tests {
                 let mut full_contribution: Vec<Vec<u8>> = vec![];
 
                 for chunk_index in 0..num_chunks {
+                    println!("chunk {} num {} batch {}", chunk_index, num_chunks, batch);
+
                     // Generate a new parameter for this chunk.
                     let parameters = Phase1Parameters::<E>::new_chunk(
                         ContributionMode::Chunked,
@@ -428,6 +430,7 @@ mod tests {
                         drop(private_key_1);
 
                         // Verify that the chunked contribution is correct.
+                        println!("Here 1");
                         assert!(Phase1::verification(
                             &input,
                             &output_1,
@@ -482,6 +485,8 @@ mod tests {
                         drop(private_key_2);
 
                         // Verify that the chunked contribution is correct.
+                        println!("Here 2");
+
                         assert!(Phase1::verification(
                             &output_1,
                             &output_2,
@@ -501,6 +506,8 @@ mod tests {
 
                         // Verification will fail if the old hash is used.
                         if parameters.chunk_index == 0 {
+                            println!("Here 3");
+
                             assert!(Phase1::verification(
                                 &output_1,
                                 &output_2,
@@ -597,6 +604,7 @@ mod tests {
 
                 let mut full_contribution_after_split = vec![];
                 for chunk_index in 0..num_chunks {
+                    println!("chunk {} num {}", chunk_index, num_chunks);
                     // Generate a new parameter for this chunk.
                     let parameters = Phase1Parameters::<E>::new_chunk(
                         ContributionMode::Chunked,
@@ -642,6 +650,8 @@ mod tests {
                         drop(private_key_1);
 
                         // Verify that the chunked contribution is correct.
+                        println!("Here 4");
+
                         assert!(Phase1::verification(
                             &input,
                             &output_1,
@@ -692,6 +702,8 @@ mod tests {
                         drop(private_key_2);
 
                         // Verify that the chunked contribution is correct.
+                        println!("Here 5");
+
                         assert!(Phase1::verification(
                             &output_1,
                             &output_2,
@@ -711,6 +723,8 @@ mod tests {
 
                         // Verification will fail if the old hash is used.
                         if parameters.chunk_index == 0 {
+                            println!("Here 6");
+
                             assert!(Phase1::verification(
                                 &output_1,
                                 &output_2,
@@ -775,7 +789,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn test_aggregation_bls12_377_wrong_chunks() {
+    fn test_aggregation__bls12_377_wrong_chunks() {
         aggregation_test::<Bls12_377>(4, 3 + 3 * 4, UseCompression::No, UseCompression::Yes, true);
     }
 

@@ -33,6 +33,8 @@ pub enum Error {
     IncorrectSubgroup,
     #[error("Got invalid decompression parameters")]
     InvalidDecompressionParametersError,
+    #[error("Got invalid batch range")]
+    InvalidBatchRangeError,
 }
 
 impl From<Box<dyn std::any::Any + Send>> for Error {
