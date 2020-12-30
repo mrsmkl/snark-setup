@@ -63,7 +63,6 @@ pub(crate) fn iter_chunk(
                         } else {
                             Ok(())
                         }
-                    //                        action(start, start+1)
                     } else {
                         action(start, start + 2)
                     }
