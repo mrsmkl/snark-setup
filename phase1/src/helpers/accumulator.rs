@@ -117,7 +117,7 @@ cfg_if! {
                         if !res {
                             warn!("Wasn't in subgroup {} index {}", p, i)
                         }
-                        true
+                        res
                     })
                 }
             };

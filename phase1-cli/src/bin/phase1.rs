@@ -81,7 +81,6 @@ fn execute_cmd<E: Engine>(opts: Phase1Opts) {
         }
         Command::VerifyAndTransformPokAndCorrectness(opt) => {
             // we receive a previous participation, verify it, and generate a new challenge from it
-            println!("check mode {}", opts.subgroup_check_mode);
             transform_pok_and_correctness(
                 &opt.challenge_fname,
                 &opt.challenge_hash_fname,
