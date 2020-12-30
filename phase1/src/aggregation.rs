@@ -775,7 +775,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn test_aggregation__bls12_377_wrong_chunks() {
+    fn test_aggregation_bls12_377_wrong_chunks() {
         aggregation_test::<Bls12_377>(4, 3 + 3 * 4, UseCompression::No, UseCompression::Yes, true);
     }
 
