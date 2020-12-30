@@ -151,6 +151,12 @@ cfg_if! {
         ) -> Result<Vec<C>> {
             let batch = amount;
             let size = buffer_size::<C>(compressed);
+            if buffer.len() < batch*size {
+                return Err(Error::InvalidLength {
+                    expected: batch,
+                    got: buffer.len() / size,
+                });
+            }
             let result = buffer[0..batch * size].read_batch(compressed, check_input_for_correctness)?;
             if result.len() != batch {
                 return Err(Error::InvalidLength {

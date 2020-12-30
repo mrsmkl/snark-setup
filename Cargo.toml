@@ -8,9 +8,9 @@ members = [
 ]
 
 [patch.'https://github.com/scipr-lab/zexe']
-zexe_algebra_core = { path = "/home/sami/zexe/algebra-core", package = "algebra-core", default-features = false, features = ["derive"] }
-zexe_algebra = { path = "/home/sami/zexe/algebra", package = "algebra", default-features = false, features = ["ed_on_bls12_381", "bls12_381", "bls12_377"] }
-zexe_fft = { path = "/home/sami/zexe/ff-fft", package = "ff-fft", default-features = false, features = ["ed_on_bls12_381", "bls12_381", "bls12_377"] }
-zexe_bench_utils = { path = "/home/sami/zexe/bench-utils", package = "bench-utils", default-features = false, features = ["ed_on_bls12_381", "bls12_381", "bls12_377"] }
-zexe_r1cs_core = { path = "/home/sami/zexe/r1cs-core", package = "r1cs-core", default-features = false, features = ["ed_on_bls12_381", "bls12_381", "bls12_377"] }
-zexe_groth16 = { path = "/home/sami/zexe/groth16", package = "groth16", default-features = false, features = [] }
+zexe_algebra_core = { git = "https://github.com/celo-org/zexe", rev = "ba217a777e8b09b59037a2a3408a0c5812ec65fb", package = "algebra-core", default-features = false, features = ["derive"] }
+zexe_algebra = { git = "https://github.com/celo-org/zexe", rev = "ba217a777e8b09b59037a2a3408a0c5812ec65fb", package = "algebra", default-features = false, features = ["ed_on_bls12_381", "bls12_381", "bls12_377"] }
+zexe_fft = { git = "https://github.com/celo-org/zexe", rev = "ba217a777e8b09b59037a2a3408a0c5812ec65fb", package = "ff-fft", default-features = false, features = ["ed_on_bls12_381", "bls12_381", "bls12_377"] }
+zexe_bench_utils = { git = "https://github.com/celo-org/zexe", rev = "ba217a777e8b09b59037a2a3408a0c5812ec65fb", package = "bench-utils", default-features = false, features = ["ed_on_bls12_381", "bls12_381", "bls12_377"] }
+zexe_r1cs_core = { git = "https://github.com/celo-org/zexe", rev = "ba217a777e8b09b59037a2a3408a0c5812ec65fb", package = "r1cs-core", default-features = false, features = ["ed_on_bls12_381", "bls12_381", "bls12_377"] }
+zexe_groth16 = { git = "https://github.com/celo-org/zexe", rev = "ba217a777e8b09b59037a2a3408a0c5812ec65fb", package = "groth16", default-features = false, features = [] }
