@@ -82,8 +82,8 @@ pub struct Phase1Opts {
         parse(try_from_str = "subgroup_check_mode_from_str")
     )]
     pub subgroup_check_mode: SubgroupCheckMode,
-    #[options(help = "perform ratio check", default = "false")]
-    pub ratio_check: bool,
+    #[options(help = "disable ratio check")]
+    pub disable_ratio_check: bool,
 }
 
 // The supported commands
