@@ -231,8 +231,10 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                 ContributionMode::Full => (start, end),
             };
 
-            // If there's only one element, don't perform ratio check
-            let ratio_check = if end > start + 1 { ratio_check } else { false };
+            // If there's only one element, ratio check will fail, so return an error
+            if ratio_check && end <= start + 1 {
+                return Err(Error::BatchTooSmall);
+            }
 
             match parameters.proving_system {
                 ProvingSystem::Groth16 => {

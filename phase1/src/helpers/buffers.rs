@@ -51,7 +51,7 @@ pub(crate) fn iter_chunk(
         .map(|chunk| {
             let (start, end) = match chunk.minmax() {
                 MinMaxResult::MinMax(start, end) => (start, if end >= max - 1 { end + 1 } else { end + 2 }), // ensure there's overlap between chunks
-                MinMaxResult::OneElement(start) => (start, if start >= max - 1 { start + 1 } else { start + 2 }),
+                MinMaxResult::OneElement(start) => (start - 1, if start >= max - 1 { start + 1 } else { start + 2 }), // ensure there are always at least two elements
                 _ => return Err(Error::InvalidChunk),
             };
             action(start, end)
