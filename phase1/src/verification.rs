@@ -41,12 +41,6 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
 
         info!("starting...");
 
-        /*
-        if parameters.batch_size == parameters.chunk_size {
-            parameters.batch_size = parameters.chunk_size+1
-        }
-        */
-
         // Split the output buffer into its components.
         let (tau_g1, tau_g2, alpha_g1, beta_g1, beta_g2) = split(output, parameters, compressed_output);
         let (
