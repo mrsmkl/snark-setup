@@ -12,10 +12,10 @@ edition = "2018"
 phase2 = { path = "../phase2", default-features = false }
 setup-utils = { path = "../setup-utils", default-features = false }
 
-algebra = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", package = "algebra", features = ["bls12_377", "bw6_761", "derive"] }
-r1cs_core = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", package = "r1cs-core" }
-groth16 = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", package = "groth16", features = [] }
-bench-utils = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", package = "bench-utils", features = [] }
+algebra = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", rev = "4ea6540322cee6d1f03a63284e5227ccfba6aea9", package = "algebra", features = ["bls12_377", "bw6_761", "derive"] }
+r1cs_core = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", rev = "4ea6540322cee6d1f03a63284e5227ccfba6aea9", package = "r1cs-core" }
+groth16 = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", rev = "4ea6540322cee6d1f03a63284e5227ccfba6aea9", package = "groth16", features = [] }
+bench-utils = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", rev = "4ea6540322cee6d1f03a63284e5227ccfba6aea9", package = "bench-utils", features = [] }
 
 gumdrop = { version = "0.7.0" }
 hex = { version = "0.4.2" }

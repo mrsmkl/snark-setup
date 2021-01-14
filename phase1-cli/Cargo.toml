@@ -12,7 +12,7 @@ edition = "2018"
 phase1 = { path = "../phase1", default-features = false }
 setup-utils = { path = "../setup-utils", default-features = false }
 
-algebra = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", package = "algebra", features = ["bls12_377", "bw6_761", "derive"] }
+algebra = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", rev = "4ea6540322cee6d1f03a63284e5227ccfba6aea9", package = "algebra", features = ["bls12_377", "bw6_761", "derive"] }
 
 gumdrop = { version = "0.7.0" }
 hex = { version = "0.4.2" }

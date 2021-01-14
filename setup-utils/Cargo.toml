@@ -14,9 +14,9 @@ name = "math"
 harness = false
 
 [dependencies]
-algebra = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", package = "algebra" }
-fft = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", package = "ff-fft", default-features = false }
-r1cs_core = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", package = "r1cs-core" }
+algebra = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", rev = "4ea6540322cee6d1f03a63284e5227ccfba6aea9", package = "algebra" }
+fft = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", rev = "4ea6540322cee6d1f03a63284e5227ccfba6aea9", package = "ff-fft", default-features = false }
+r1cs_core = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", rev = "4ea6540322cee6d1f03a63284e5227ccfba6aea9", package = "r1cs-core" }
 groth16 = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", rev = "4ea6540322cee6d1f03a63284e5227ccfba6aea9", package = "groth16", features = [] }
 
 blake2 = { version = "0.8.1" }
@@ -35,7 +35,7 @@ typenum = { version = "1.11.2" }
 [dev-dependencies]
 phase1 = { path = "../phase1" }
 
-algebra = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", package = "algebra", features = ["bls12_377", "bw6_761"] }
+algebra = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", rev = "4ea6540322cee6d1f03a63284e5227ccfba6aea9", package = "algebra", features = ["bls12_377", "bw6_761"] }
 
 criterion = { version = "0.3.1" }
 rusty-hook = { version = "0.11.2" }
