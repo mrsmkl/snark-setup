@@ -165,7 +165,7 @@ dependencies = [
 [[package]]
 name = "bls-crypto"
 version = "0.2.0"
-source = "git+https://github.com/celo-org/celo-bls-snark-rs#b8dfb21efcbf8c3d09fcaeb72c211d311f73a83b"
+source = "git+https://github.com/celo-org/celo-bls-snark-rs?branch=straka/zexe-patch#254ffbff00ff3b8738c4880ce4c654c55a8a6c41"
 dependencies = [
  "algebra",
  "bench-utils",
@@ -187,7 +187,7 @@ dependencies = [
 [[package]]
 name = "bls-gadgets"
 version = "0.2.0"
-source = "git+https://github.com/celo-org/celo-bls-snark-rs#b8dfb21efcbf8c3d09fcaeb72c211d311f73a83b"
+source = "git+https://github.com/celo-org/celo-bls-snark-rs?branch=straka/zexe-patch#254ffbff00ff3b8738c4880ce4c654c55a8a6c41"
 dependencies = [
  "algebra",
  "algebra-core",
@@ -627,7 +627,7 @@ dependencies = [
 [[package]]
 name = "epoch-snark"
 version = "0.2.0"
-source = "git+https://github.com/celo-org/celo-bls-snark-rs#b8dfb21efcbf8c3d09fcaeb72c211d311f73a83b"
+source = "git+https://github.com/celo-org/celo-bls-snark-rs?branch=straka/zexe-patch#254ffbff00ff3b8738c4880ce4c654c55a8a6c41"
 dependencies = [
  "algebra",
  "algebra-core",
