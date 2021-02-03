@@ -8,7 +8,7 @@ pub use errors::{Error, InvariantKind, Phase2Error, VerificationError};
 /// A convenience result type for returning errors
 pub type Result<T> = std::result::Result<T, Error>;
 
-mod groth16_utils;
+pub mod groth16_utils;
 pub use groth16_utils::Groth16Params;
 
 mod elements;
