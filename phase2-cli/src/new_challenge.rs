@@ -1,13 +1,10 @@
+use phase2::load_circuit::Matrices;
 use phase2::parameters::MPCParameters;
 use setup_utils::{calculate_hash, print_hash, CheckForCorrectness, UseCompression};
 
-use algebra::{bw6_761::Fr, CanonicalSerialize, BW6_761};
-use r1cs_core::ConstraintSynthesizer;
-use r1cs_core::{ConstraintSystem, SynthesisMode};
-
-use epoch_snark::ValidatorSetUpdate;
+use algebra::{CanonicalDeserialize, CanonicalSerialize, BW6_761};
 use memmap::*;
-use std::{fs::OpenOptions, io::Write};
+use std::{fs::File, fs::OpenOptions, io::Read, io::Write};
 use tracing::info;
 
 const COMPRESS_NEW_CHALLENGE: UseCompression = UseCompression::No;
@@ -18,8 +15,8 @@ pub fn new_challenge(
     chunk_size: usize,
     phase1_filename: &str,
     phase1_powers: usize,
-    num_validators: usize,
-    num_epochs: usize,
+    _num_validators: usize,
+    _num_epochs: usize,
 ) {
     info!("Generating phase 2");
 
@@ -34,19 +31,27 @@ pub fn new_challenge(
             .expect("unable to create a memory map for input")
     };
 
+    /*
     let c = ValidatorSetUpdate::empty(num_validators, num_epochs, 0, None);
     let counter = ConstraintSystem::<Fr>::new_ref();
     counter.set_mode(SynthesisMode::Setup);
     c.clone().generate_constraints(counter.clone()).unwrap();
-    let phase2_size = std::cmp::max(
-        counter.num_constraints(),
-        counter.num_witness_variables() + counter.num_instance_variables(),
-    )
-    .next_power_of_two();
+    */
+
+    let mut file = File::open("test.contraints").unwrap();
+    // read the same file back into a Vec of bytes
+    let mut buffer = Vec::<u8>::new();
+    file.read_to_end(&mut buffer).unwrap();
+    let m = Matrices::<BW6_761>::deserialize(&*buffer).unwrap();
+    // let mut cursor = Cursor::new(&buffer[..]);
+    // let m = Matrix::<Fq>::deserialize(&cursor).unwrap();
+
+    let phase2_size =
+        std::cmp::max(m.num_constraints, m.num_witness_variables + m.num_instance_variables).next_power_of_two();
 
     let (full_mpc_parameters, query_parameters, all_mpc_parameters) =
         MPCParameters::<BW6_761>::new_from_buffer_chunked(
-            c,
+            m,
             &mut phase1_readable_map,
             UseCompression::No,
             CheckForCorrectness::No,
