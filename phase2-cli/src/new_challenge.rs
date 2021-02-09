@@ -20,17 +20,6 @@ pub fn new_challenge(
 ) {
     info!("Generating phase 2");
 
-    let reader = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open(&phase1_filename)
-        .expect("unable open phase 1 file in this directory");
-    let mut phase1_readable_map = unsafe {
-        MmapOptions::new()
-            .map_mut(&reader)
-            .expect("unable to create a memory map for input")
-    };
-
     /*
     let c = ValidatorSetUpdate::empty(num_validators, num_epochs, 0, None);
     let counter = ConstraintSystem::<Fr>::new_ref();
@@ -46,8 +35,21 @@ pub fn new_challenge(
     // let mut cursor = Cursor::new(&buffer[..]);
     // let m = Matrix::<Fq>::deserialize(&cursor).unwrap();
 
+    println!("{}", m.num_constraints);
+
     let phase2_size =
         std::cmp::max(m.num_constraints, m.num_witness_variables + m.num_instance_variables).next_power_of_two();
+
+    let reader = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(&phase1_filename)
+        .expect("unable open phase 1 file in this directory");
+    let mut phase1_readable_map = unsafe {
+        MmapOptions::new()
+            .map_mut(&reader)
+            .expect("unable to create a memory map for input")
+    };
 
     let (full_mpc_parameters, query_parameters, all_mpc_parameters) =
         MPCParameters::<BW6_761>::new_from_buffer_chunked(
