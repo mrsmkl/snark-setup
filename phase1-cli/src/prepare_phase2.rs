@@ -14,6 +14,9 @@ use tracing_subscriber::{
     fmt::{time::ChronoUtc, Subscriber},
 };
 
+const INPUT_IS_COMPRESSED: UseCompression = UseCompression::No;
+const OUTPUT_IS_COMPRESSED: UseCompression = UseCompression::No;
+
 pub fn prepare_phase2<T: Engine + Sync>(
     phase2_filename: &str,
     response_filename: &str,
@@ -42,7 +45,7 @@ pub fn prepare_phase2<T: Engine + Sync>(
     // Deserialize the accumulator
     let current_accumulator = Phase1::deserialize(
         &response_readable_map,
-        UseCompression::Yes,
+        INPUT_IS_COMPRESSED,
         CheckForCorrectness::Full,
         &parameters,
     )
@@ -60,7 +63,7 @@ pub fn prepare_phase2<T: Engine + Sync>(
     .expect("could not create Groth16 Lagrange coefficients");
 
     // Write the parameters
-    groth16_params.write(&mut writer, UseCompression::No)?;
+    groth16_params.write(&mut writer, OUTPUT_IS_COMPRESSED)?;
 
     Ok(())
 }
