@@ -35,6 +35,7 @@ fn execute_cmd<E: Engine>(opts: Phase2Opts) {
                 opt.phase1_powers,
                 opt.num_validators,
                 opt.num_epochs,
+                &opt.circuit_fname,
             );
         }
         Command::Contribute(opt) => {

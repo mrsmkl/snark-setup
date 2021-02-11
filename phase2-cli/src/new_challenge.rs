@@ -17,25 +17,17 @@ pub fn new_challenge(
     phase1_powers: usize,
     _num_validators: usize,
     _num_epochs: usize,
+    circuit_filename: &str,
 ) {
     info!("Generating phase 2");
 
-    /*
-    let c = ValidatorSetUpdate::empty(num_validators, num_epochs, 0, None);
-    let counter = ConstraintSystem::<Fr>::new_ref();
-    counter.set_mode(SynthesisMode::Setup);
-    c.clone().generate_constraints(counter.clone()).unwrap();
-    */
-
-    let mut file = File::open("test.contraints").unwrap();
-    // read the same file back into a Vec of bytes
+    // let mut file = File::open("test.contraints").unwrap();
+    let mut file = File::open(circuit_filename).unwrap();
     let mut buffer = Vec::<u8>::new();
     file.read_to_end(&mut buffer).unwrap();
     let m = Matrices::<BW6_761>::deserialize(&*buffer).unwrap();
-    // let mut cursor = Cursor::new(&buffer[..]);
-    // let m = Matrix::<Fq>::deserialize(&cursor).unwrap();
 
-    println!("{}", m.num_constraints);
+    info!("Loaded circuit with {} constraints", m.num_constraints);
 
     let phase2_size =
         std::cmp::max(m.num_constraints, m.num_witness_variables + m.num_instance_variables).next_power_of_two();
