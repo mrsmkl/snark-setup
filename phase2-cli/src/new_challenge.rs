@@ -40,6 +40,7 @@ pub fn new_challenge(
     let counter = ConstraintSystem::<Fr>::new_ref();
     counter.set_mode(SynthesisMode::Setup);
     info!("About to generate constraints");
+    info!("Testing info statements");
     c.clone().generate_constraints(counter.clone()).unwrap();
     info!("Finished generating constraints");
     let phase2_size = std::cmp::max(
