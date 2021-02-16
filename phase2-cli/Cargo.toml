@@ -25,7 +25,7 @@ tracing = { version = "0.1.17" }
 tracing-subscriber = { version = "0.2.3" }
 phase1 = { path = "../phase1" }
 #epoch-snark = { git = "https://github.com/celo-org/celo-bls-snark-rs", branch = "straka/integration_info" }
-epoch-snark = { git = "https://github.com/celo-org/celo-bls-snark-rs", rev = "de7c4cd5a0f617b046c6792442a32b8faf610874" }
+epoch-snark = { git = "https://github.com/celo-org/celo-bls-snark-rs", rev = "54af6105607f2ec3ceffff77fbc46eb11564c246" }
 
 [dev-dependencies]
 rand_xorshift = { version = "0.2" }

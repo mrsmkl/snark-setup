@@ -165,7 +165,7 @@ dependencies = [
 [[package]]
 name = "bls-crypto"
 version = "0.2.0"
-source = "git+https://github.com/celo-org/celo-bls-snark-rs?rev=de7c4cd5a0f617b046c6792442a32b8faf610874#de7c4cd5a0f617b046c6792442a32b8faf610874"
+source = "git+https://github.com/celo-org/celo-bls-snark-rs?rev=54af6105607f2ec3ceffff77fbc46eb11564c246#54af6105607f2ec3ceffff77fbc46eb11564c246"
 dependencies = [
  "algebra",
  "bench-utils",
@@ -187,7 +187,7 @@ dependencies = [
 [[package]]
 name = "bls-gadgets"
 version = "0.2.0"
-source = "git+https://github.com/celo-org/celo-bls-snark-rs?rev=de7c4cd5a0f617b046c6792442a32b8faf610874#de7c4cd5a0f617b046c6792442a32b8faf610874"
+source = "git+https://github.com/celo-org/celo-bls-snark-rs?rev=54af6105607f2ec3ceffff77fbc46eb11564c246#54af6105607f2ec3ceffff77fbc46eb11564c246"
 dependencies = [
  "algebra",
  "algebra-core",
@@ -627,7 +627,7 @@ dependencies = [
 [[package]]
 name = "epoch-snark"
 version = "0.2.0"
-source = "git+https://github.com/celo-org/celo-bls-snark-rs?rev=de7c4cd5a0f617b046c6792442a32b8faf610874#de7c4cd5a0f617b046c6792442a32b8faf610874"
+source = "git+https://github.com/celo-org/celo-bls-snark-rs?rev=54af6105607f2ec3ceffff77fbc46eb11564c246#54af6105607f2ec3ceffff77fbc46eb11564c246"
 dependencies = [
  "algebra",
  "algebra-core",
