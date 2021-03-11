@@ -171,6 +171,13 @@ impl<E: PairingEngine> Groth16Params<E> {
         let span = info_span!("Groth16Utils_read");
         let _enter = span.enter();
 
+        println!(
+            "Reading phase1 size {} phase2 {} input size {}",
+            phase1_size,
+            num_constraints,
+            reader.len()
+        );
+
         let mut reader = std::io::Cursor::new(reader);
         let alpha_g1 = reader.read_element(compressed, check_input_for_correctness)?;
         let beta_g1 = reader.read_element(compressed, check_input_for_correctness)?;
@@ -179,15 +186,20 @@ impl<E: PairingEngine> Groth16Params<E> {
         let position = reader.position() as usize;
         let reader = &mut &reader.get_mut()[position..];
 
+        println!("Got elements {}", reader.len());
+
         // Split the transcript in the appropriate sections
         let (in_coeffs_g1, in_coeffs_g2, in_alpha_coeffs_g1, in_beta_coeffs_g1, in_h_g1) =
             split_transcript::<E>(reader, phase1_size, num_constraints, compressed);
+
+        println!("Splitting worked");
 
         info!("reading groth16 parameters...");
         // Read all elements in parallel
         // note: '??' is used for getting the result from the threaded operation,
         // and then getting the result from the function inside the thread)
         Ok(crossbeam::scope(|s| -> Result<_> {
+            println!("Parallel reading");
             let coeffs_g1 =
                 s.spawn(|_| in_coeffs_g1.read_batch::<E::G1Affine>(compressed, check_input_for_correctness));
             let coeffs_g2 =
@@ -240,9 +252,13 @@ fn split_transcript<E: PairingEngine>(
     let g1_size = buffer_size::<E::G1Affine>(compressed);
     let g2_size = buffer_size::<E::G2Affine>(compressed);
 
+    println!("Splitting {} {} input size {}", g1_size, g2_size, input.len());
+
     // N elements per coefficient
     let (coeffs_g1, others) = input.split_at(g1_size * size);
+    println!("Splitting 1 {} {}", g1_size, g2_size);
     let (_, others) = others.split_at((phase1_size - size) * g1_size);
+    println!("Splitting 2 {} {}", g1_size, g2_size);
 
     let (coeffs_g2, others) = others.split_at(g2_size * size);
     let (_, others) = others.split_at((phase1_size - size) * g2_size);

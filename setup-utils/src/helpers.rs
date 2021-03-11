@@ -546,8 +546,8 @@ fn dense_multiexp_inner<G: AffineCurve>(
     }
 }
 
-pub const DEFAULT_CONTRIBUTE_CHECK_INPUT_CORRECTNESS: CheckForCorrectness = CheckForCorrectness::No;
-pub const DEFAULT_VERIFY_CHECK_INPUT_CORRECTNESS: CheckForCorrectness = CheckForCorrectness::No;
+pub const DEFAULT_CONTRIBUTE_CHECK_INPUT_CORRECTNESS: CheckForCorrectness = CheckForCorrectness::Full;
+pub const DEFAULT_VERIFY_CHECK_INPUT_CORRECTNESS: CheckForCorrectness = CheckForCorrectness::Full;
 pub const DEFAULT_VERIFY_CHECK_OUTPUT_CORRECTNESS: CheckForCorrectness = CheckForCorrectness::Full;
 
 pub fn upgrade_correctness_check_config(

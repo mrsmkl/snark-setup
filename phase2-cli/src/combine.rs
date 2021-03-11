@@ -8,7 +8,7 @@ use std::io::{BufRead, BufReader};
 use tracing::info;
 
 const INITIAL_IS_COMPRESSED: UseCompression = UseCompression::No;
-const CONTRIBUTION_IS_COMPRESSED: UseCompression = UseCompression::Yes;
+const CONTRIBUTION_IS_COMPRESSED: UseCompression = UseCompression::No;
 const COMBINED_IS_COMPRESSED: UseCompression = UseCompression::No;
 
 pub fn combine(
@@ -17,31 +17,36 @@ pub fn combine(
     response_list_filename: &str,
     combined_filename: &str,
 ) {
-    info!("Combining phase 2");
+    info!("Combining phase 2 {} {}", combined_filename, response_list_filename);
 
     let response_list_reader =
         BufReader::new(File::open(response_list_filename).expect("should have opened the response list"));
+
+    println!("Full");
 
     let full_contents = std::fs::read(initial_full_filename).expect("should have initial full parameters");
     let full_parameters = MPCParameters::<BW6_761>::read_fast(
         full_contents.as_slice(),
         INITIAL_IS_COMPRESSED,
-        CheckForCorrectness::No,
+        CheckForCorrectness::Full,
         false,
         SubgroupCheckMode::Auto,
     )
     .expect("should have read full parameters");
+
+    println!("Query");
 
     let mut query_contents =
         std::io::Cursor::new(std::fs::read(initial_query_filename).expect("should have read initial query"));
     let query_parameters = MPCParameters::<BW6_761>::read_groth16_fast(
         &mut query_contents,
         INITIAL_IS_COMPRESSED,
-        CheckForCorrectness::No,
+        CheckForCorrectness::Full,
         false,
         SubgroupCheckMode::Auto,
     )
     .expect("should have deserialized initial query params");
+    println!("Response list");
 
     let mut all_parameters = vec![];
     for line in response_list_reader.lines() {
@@ -50,7 +55,7 @@ pub fn combine(
         let parameters = MPCParameters::<BW6_761>::read_fast(
             contents.as_slice(),
             CONTRIBUTION_IS_COMPRESSED,
-            CheckForCorrectness::No,
+            CheckForCorrectness::Full,
             false,
             SubgroupCheckMode::Auto,
         )
@@ -82,4 +87,14 @@ pub fn combine(
         .expect("should have serialized combined parameters");
     std::fs::write(format!("{}.params", combined_filename), &combined_parameters_contents)
         .expect("should have written combined parameters file");
+
+    let check_contents = std::fs::read(combined_filename).expect("should have read the combined file");
+    let mut check_parameters = MPCParameters::<BW6_761>::read_fast(
+        check_contents.as_slice(),
+        COMBINED_IS_COMPRESSED,
+        CheckForCorrectness::Full,
+        false,
+        SubgroupCheckMode::Auto,
+    )
+    .expect("should have read parameters");
 }
