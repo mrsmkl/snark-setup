@@ -52,11 +52,13 @@ pub fn verify(
     let parameters_after = MPCParameters::<BW6_761>::read_fast(
         response_contents.as_slice(),
         CONTRIBUTION_IS_COMPRESSED,
-        check_output_correctness,
+        CheckForCorrectness::No,
         true,
         subgroup_check_mode,
     )
     .expect("should have read parameters");
+
+    println!("challenge {} response {}", challenge_filename, response_filename);
 
     parameters_before
         .verify(&parameters_after)

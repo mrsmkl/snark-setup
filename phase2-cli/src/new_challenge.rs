@@ -84,6 +84,7 @@ pub fn new_challenge(
         calculate_hash(&serialized_mpc_parameters)
     };
 
+    /*
     let check_contents =
         std::fs::read(format!("{}.full", challenge_filename)).expect("should have read the combined file");
     let mut check_parameters = MPCParameters::<BW6_761>::read_fast(
@@ -94,6 +95,7 @@ pub fn new_challenge(
         SubgroupCheckMode::Auto,
     )
     .expect("should have read parameters");
+    */
 
     std::fs::File::create(format!("{}.query", challenge_filename))
         .expect("unable to open new challenge hash file")

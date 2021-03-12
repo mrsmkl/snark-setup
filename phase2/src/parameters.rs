@@ -230,6 +230,34 @@ impl<E: PairingEngine> MPCParameters<E> {
             delta_g2: E::G2Affine::prime_subgroup_generator(),
             gamma_abc_g1,
         };
+
+        // Check where is the zero
+        /*
+        {
+            for e in params.h_g1.iter() {
+                if e.is_zero() {
+                    println!("Error in h_query");
+                    return Err(SynthesisError::UnconstrainedVariable.into());
+                }
+            }
+            for (idx, e) in a_g1.iter().enumerate() {
+                if e.is_zero() {
+                    println!("Error in a_g1_query {}", idx);
+                }
+            }
+            for (idx, e) in b_g1.iter().enumerate() {
+                if e.is_zero() {
+                    println!("Error in b_g1_query {}", idx);
+                }
+            }
+            for (idx, e) in b_g2.iter().enumerate() {
+                if e.is_zero() {
+                    println!("Error in b_g2_query {}", idx);
+                }
+            }
+        }
+        */
+
         let params = Parameters {
             vk,
             beta_g1: params.beta_g1,

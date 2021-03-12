@@ -1,7 +1,7 @@
 use phase2::parameters::MPCParameters;
 use setup_utils::{print_hash, CheckForCorrectness, SubgroupCheckMode, UseCompression};
 
-use algebra::{CanonicalSerialize, BW6_761};
+use algebra::{CanonicalSerialize, Zero, BW6_761};
 
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -28,7 +28,7 @@ pub fn combine(
     let full_parameters = MPCParameters::<BW6_761>::read_fast(
         full_contents.as_slice(),
         INITIAL_IS_COMPRESSED,
-        CheckForCorrectness::Full,
+        CheckForCorrectness::No,
         false,
         SubgroupCheckMode::Auto,
     )
@@ -41,7 +41,7 @@ pub fn combine(
     let query_parameters = MPCParameters::<BW6_761>::read_groth16_fast(
         &mut query_contents,
         INITIAL_IS_COMPRESSED,
-        CheckForCorrectness::Full,
+        CheckForCorrectness::No,
         false,
         SubgroupCheckMode::Auto,
     )
@@ -55,7 +55,7 @@ pub fn combine(
         let parameters = MPCParameters::<BW6_761>::read_fast(
             contents.as_slice(),
             CONTRIBUTION_IS_COMPRESSED,
-            CheckForCorrectness::Full,
+            CheckForCorrectness::No,
             false,
             SubgroupCheckMode::Auto,
         )
@@ -65,6 +65,32 @@ pub fn combine(
 
     let combined =
         MPCParameters::<BW6_761>::combine(&query_parameters, &all_parameters).expect("should have combined parameters");
+
+    // Check where is the zero
+    /*
+    {
+        let p = &combined.params;
+        for e in p.h_query.iter() {
+            if e.is_zero() {
+                println!("Error in h_query");
+            }
+        }
+        for (idx, e) in p.a_query.iter().enumerate() {
+            if e.is_zero() {
+                println!("Error in a_g1_query {}", idx);
+            }
+        }
+        for (idx, e) in p.b_g1_query.iter().enumerate() {
+            if e.is_zero() {
+                println!("Error in b_g1_query {}", idx);
+            }
+        }
+        for (idx, e) in p.b_g2_query.iter().enumerate() {
+            if e.is_zero() {
+                println!("Error in b_g2_query {}", idx);
+            }
+        }
+    }*/
 
     let contributions_hash = full_parameters
         .verify(&combined)
@@ -88,13 +114,15 @@ pub fn combine(
     std::fs::write(format!("{}.params", combined_filename), &combined_parameters_contents)
         .expect("should have written combined parameters file");
 
-    let check_contents = std::fs::read(combined_filename).expect("should have read the combined file");
-    let mut check_parameters = MPCParameters::<BW6_761>::read_fast(
-        check_contents.as_slice(),
-        COMBINED_IS_COMPRESSED,
-        CheckForCorrectness::Full,
-        false,
-        SubgroupCheckMode::Auto,
-    )
-    .expect("should have read parameters");
+    /*
+        let check_contents = std::fs::read(combined_filename).expect("should have read the combined file");
+        let mut check_parameters = MPCParameters::<BW6_761>::read_fast(
+            check_contents.as_slice(),
+            COMBINED_IS_COMPRESSED,
+            CheckForCorrectness::Full,
+            false,
+            SubgroupCheckMode::Auto,
+        )
+        .expect("should have read parameters");
+    */
 }
