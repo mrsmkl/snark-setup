@@ -1,7 +1,7 @@
 use phase2::parameters::MPCParameters;
 use setup_utils::{print_hash, CheckForCorrectness, SubgroupCheckMode, UseCompression};
 
-use algebra::{CanonicalSerialize, Zero, BW6_761};
+use algebra::{CanonicalSerialize, BW6_761};
 
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -22,8 +22,6 @@ pub fn combine(
     let response_list_reader =
         BufReader::new(File::open(response_list_filename).expect("should have opened the response list"));
 
-    println!("Full");
-
     let full_contents = std::fs::read(initial_full_filename).expect("should have initial full parameters");
     let full_parameters = MPCParameters::<BW6_761>::read_fast(
         full_contents.as_slice(),
@@ -33,8 +31,6 @@ pub fn combine(
         SubgroupCheckMode::Auto,
     )
     .expect("should have read full parameters");
-
-    println!("Query");
 
     let mut query_contents =
         std::io::Cursor::new(std::fs::read(initial_query_filename).expect("should have read initial query"));
@@ -46,7 +42,6 @@ pub fn combine(
         SubgroupCheckMode::Auto,
     )
     .expect("should have deserialized initial query params");
-    println!("Response list");
 
     let mut all_parameters = vec![];
     for line in response_list_reader.lines() {
@@ -65,32 +60,6 @@ pub fn combine(
 
     let combined =
         MPCParameters::<BW6_761>::combine(&query_parameters, &all_parameters).expect("should have combined parameters");
-
-    // Check where is the zero
-    /*
-    {
-        let p = &combined.params;
-        for e in p.h_query.iter() {
-            if e.is_zero() {
-                println!("Error in h_query");
-            }
-        }
-        for (idx, e) in p.a_query.iter().enumerate() {
-            if e.is_zero() {
-                println!("Error in a_g1_query {}", idx);
-            }
-        }
-        for (idx, e) in p.b_g1_query.iter().enumerate() {
-            if e.is_zero() {
-                println!("Error in b_g1_query {}", idx);
-            }
-        }
-        for (idx, e) in p.b_g2_query.iter().enumerate() {
-            if e.is_zero() {
-                println!("Error in b_g2_query {}", idx);
-            }
-        }
-    }*/
 
     let contributions_hash = full_parameters
         .verify(&combined)
@@ -113,16 +82,4 @@ pub fn combine(
         .expect("should have serialized combined parameters");
     std::fs::write(format!("{}.params", combined_filename), &combined_parameters_contents)
         .expect("should have written combined parameters file");
-
-    /*
-        let check_contents = std::fs::read(combined_filename).expect("should have read the combined file");
-        let mut check_parameters = MPCParameters::<BW6_761>::read_fast(
-            check_contents.as_slice(),
-            COMBINED_IS_COMPRESSED,
-            CheckForCorrectness::Full,
-            false,
-            SubgroupCheckMode::Auto,
-        )
-        .expect("should have read parameters");
-    */
 }

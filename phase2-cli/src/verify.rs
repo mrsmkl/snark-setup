@@ -15,7 +15,7 @@ pub fn verify(
     check_input_correctness: CheckForCorrectness,
     response_filename: &str,
     response_hash_filename: &str,
-    check_output_correctness: CheckForCorrectness,
+    _check_output_correctness: CheckForCorrectness,
     subgroup_check_mode: SubgroupCheckMode,
 ) {
     info!("Verifying phase 2");
@@ -57,8 +57,6 @@ pub fn verify(
         subgroup_check_mode,
     )
     .expect("should have read parameters");
-
-    println!("challenge {} response {}", challenge_filename, response_filename);
 
     parameters_before
         .verify(&parameters_after)

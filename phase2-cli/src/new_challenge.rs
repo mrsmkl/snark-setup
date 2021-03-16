@@ -1,5 +1,5 @@
 use phase2::parameters::MPCParameters;
-use setup_utils::{calculate_hash, print_hash, CheckForCorrectness, SubgroupCheckMode, UseCompression};
+use setup_utils::{calculate_hash, print_hash, CheckForCorrectness, UseCompression};
 
 use algebra::{bw6_761::Fr, CanonicalSerialize, BW6_761};
 use r1cs_core::ConstraintSynthesizer;
@@ -83,19 +83,6 @@ pub fn new_challenge(
         // Get the hash of the contribution, so the user can compare later
         calculate_hash(&serialized_mpc_parameters)
     };
-
-    /*
-    let check_contents =
-        std::fs::read(format!("{}.full", challenge_filename)).expect("should have read the combined file");
-    let mut check_parameters = MPCParameters::<BW6_761>::read_fast(
-        check_contents.as_slice(),
-        UseCompression::No,
-        CheckForCorrectness::Full,
-        false,
-        SubgroupCheckMode::Auto,
-    )
-    .expect("should have read parameters");
-    */
 
     std::fs::File::create(format!("{}.query", challenge_filename))
         .expect("unable to open new challenge hash file")
