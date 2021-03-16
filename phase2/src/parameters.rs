@@ -230,7 +230,6 @@ impl<E: PairingEngine> MPCParameters<E> {
             delta_g2: E::G2Affine::prime_subgroup_generator(),
             gamma_abc_g1,
         };
-
         let params = Parameters {
             vk,
             beta_g1: params.beta_g1,

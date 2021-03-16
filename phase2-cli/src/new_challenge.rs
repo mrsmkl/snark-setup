@@ -23,8 +23,6 @@ pub fn new_challenge(
 ) -> usize {
     info!("Generating phase 2");
 
-    println!("new challenge from {}", phase1_filename);
-
     let reader = OpenOptions::new()
         .read(true)
         .write(true)
